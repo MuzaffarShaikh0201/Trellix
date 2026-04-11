@@ -1,0 +1,47 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+
+@layer base {
+	:root {
+		--color-primary: #3b82f6;
+
+		--background-primary: #f8fafc;
+		--background-secondary: #ffffff;
+		--text-primary: #0f172a;
+		--text-secondary: #8a909e;
+		--color-tint: #f3f6fd;
+	}
+
+	[data-theme="dark"] {
+		--background-primary: #11192c;
+		--background-secondary: #141d33;
+		--text-primary: #ffffff;
+		--text-secondary: #8a909e;
+		--color-tint: #1f2a42;
+	}
+}
+
+@theme {
+	--color-primary: var(--color-primary);
+
+	--color-background-primary: var(--background-primary);
+	--color-background-secondary: var(--background-secondary);
+	--color-text-primary: var(--text-primary);
+	--color-text-secondary: var(--text-secondary);
+	--color-tint: var(--color-tint);
+}
+
+* {
+	font-family: "Poppins", sans-serif;
+	box-sizing: border-box;
+}
+
+body {
+	background-color: var(--color-background-primary);
+	color: var(--text-primary);
+}
+
+.custom-scrollbar {
+	scrollbar-width: thin;
+	scrollbar-color: var(--text-secondary) var(--background-secondary);
+}
