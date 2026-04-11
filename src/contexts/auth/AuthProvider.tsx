@@ -101,8 +101,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			const session = await loginUser(params);
 			setAuthSession(session);
 			setHasSession(true);
-			const u = await fetchCurrentUser();
-			setUser(u);
 			await queryClient.invalidateQueries();
 		},
 		[queryClient],
@@ -133,12 +131,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			setUser(null);
 			return;
 		}
+		const wasAuthenticated = hasSession;
 		try {
 			const session = await refreshTokens(stored.refresh_token);
 			setAuthSession(session);
 			setHasSession(true);
-			const u = await fetchCurrentUser();
-			setUser(u);
+			if (wasAuthenticated) {
+				const u = await fetchCurrentUser();
+				setUser(u);
+			}
 			await queryClient.invalidateQueries();
 		} catch {
 			clearAuthSession();
@@ -146,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			setUser(null);
 			queryClient.clear();
 		}
-	}, [queryClient]);
+	}, [queryClient, hasSession]);
 
 	const value = useMemo(
 		() => ({
