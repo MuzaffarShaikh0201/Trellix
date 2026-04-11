@@ -1,7 +1,13 @@
 import { Routes, Route, Navigate } from "react-router";
+import { GuestOnlyRoute } from "@/app/GuestOnlyRoute";
 import { ProtectedRoute } from "@/app/ProtectedRoute";
 import { AuthPage } from "@/pages/AuthPage";
 import { DashboardPage } from "@/pages/DashboardPage";
+import {
+	NotFoundPage,
+	ServerErrorPage,
+	ServiceUnavailablePage,
+} from "@/pages/HttpErrorPages";
 import { LegalInfoPage } from "@/pages/LegalInfoPage";
 
 function App() {
@@ -24,9 +30,33 @@ function App() {
 					</ProtectedRoute>
 				}
 			/>
-			<Route path="/login" element={<AuthPage />} />
-			<Route path="/signup" element={<AuthPage />} />
-			<Route path="/forgot-password" element={<AuthPage />} />
+			<Route
+				path="/login"
+				element={
+					<GuestOnlyRoute>
+						<AuthPage />
+					</GuestOnlyRoute>
+				}
+			/>
+			<Route
+				path="/signup"
+				element={
+					<GuestOnlyRoute>
+						<AuthPage />
+					</GuestOnlyRoute>
+				}
+			/>
+			<Route
+				path="/forgot-password"
+				element={
+					<GuestOnlyRoute>
+						<AuthPage />
+					</GuestOnlyRoute>
+				}
+			/>
+			<Route path="/500" element={<ServerErrorPage />} />
+			<Route path="/503" element={<ServiceUnavailablePage />} />
+			<Route path="*" element={<NotFoundPage />} />
 		</Routes>
 	);
 }

@@ -4,9 +4,11 @@ import type { LoginParams, MessageResponse, RegisterParams, User } from "@/types
 
 export type AuthContextValue = {
 	user: User | null;
+	/**
+	 * True when a full session exists in storage (access + refresh + session id).
+	 * The access token is treated as valid until an authenticated API call returns 401 after a failed refresh.
+	 */
 	isAuthenticated: boolean;
-	/** False until the initial session check (localStorage + `/user`) finishes. */
-	isReady: boolean;
 	login: (params: LoginParams) => Promise<void>;
 	logout: () => Promise<void>;
 	register: (params: RegisterParams) => Promise<MessageResponse>;

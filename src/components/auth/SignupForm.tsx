@@ -8,6 +8,7 @@ import googleLogo from "@/assets/google.svg";
 import Button from "@/components/ui/Button";
 import { CustomLoader } from "@/components/ui/CustomLoader";
 import FormField from "@/components/ui/FormField";
+import { safeAppRedirectTarget } from "@/lib/auth/auth-routes";
 import { getRequestErrorMessage } from "@/lib/getRequestErrorMessage";
 import { showAlert } from "@/services/alertService";
 
@@ -23,7 +24,7 @@ export function SignupForm() {
 	const [loading, setLoading] = useState(false);
 
 	const [searchParams] = useSearchParams();
-	const redirectTo = searchParams.get("redirectTo") || "/";
+	const redirectTo = safeAppRedirectTarget(searchParams.get("redirectTo"));
 	const navigate = useNavigate();
 	const { register, login } = useAuth();
 

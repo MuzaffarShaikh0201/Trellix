@@ -1,4 +1,5 @@
 import { postSessionRefresh } from "@/lib/api/session-refresh";
+import { notifySessionExpired } from "@/lib/auth/session-expired";
 import {
 	clearAuthSession,
 	getStoredAccessToken,
@@ -109,6 +110,7 @@ export async function apiRequest<T>(
 
 	if (res.status === 401 && auth) {
 		clearAuthSession();
+		notifySessionExpired();
 	}
 
 	if (!res.ok) {
