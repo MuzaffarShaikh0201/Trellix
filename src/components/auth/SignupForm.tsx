@@ -248,7 +248,7 @@ export function SignupForm() {
 
 			<div className="flex w-full flex-col items-center justify-center gap-2 self-end p-2 lg:hidden">
 				<p className="text-xs text-text-secondary">
-					&copy; Trellix {year}
+					&copy; Trellix&trade; {year}
 				</p>
 				<Link
 					to="/legal#terms-of-use"

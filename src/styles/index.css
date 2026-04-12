@@ -3,6 +3,8 @@
 
 @layer base {
 	:root {
+		color-scheme: light;
+
 		--color-primary: #3b82f6;
 
 		--background-primary: #f8fafc;
@@ -13,6 +15,8 @@
 	}
 
 	[data-theme="dark"] {
+		color-scheme: dark;
+
 		--background-primary: #11192c;
 		--background-secondary: #141d33;
 		--text-primary: #ffffff;
