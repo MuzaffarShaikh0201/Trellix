@@ -11,11 +11,15 @@ import {
 	MdAdd,
 	MdAddCircleOutline,
 	MdCategory,
+	MdChevronLeft,
+	MdChevronRight,
 	MdFavorite,
 	MdFavoriteBorder,
 	MdFilterList,
+	MdFirstPage,
 	MdFlightTakeoff,
 	MdHomeWork,
+	MdLastPage,
 	MdPalette,
 	MdPersonOutline,
 	MdRocketLaunch,
@@ -395,20 +399,22 @@ export function ProjectsPage() {
 	const [statusFilter, setStatusFilter] = useState<ProjectStatus | "ALL">("ALL");
 	const [sortBy, setSortBy] = useState<ProjectSortBy>("updated_at");
 	const [sortOrder, setSortOrder] = useState<ProjectSortOrder>("desc");
+	const [page, setPage] = useState(1);
+	const [rowsPerPage, setRowsPerPage] = useState(12);
 
 	const queryKey = useMemo(
 		() =>
 			[
 				"projects",
 				{
-					page: 1,
-					limit: 24,
+					page,
+					limit: rowsPerPage,
 					status: statusFilter,
 					sort_by: sortBy,
 					sort_order: sortOrder,
 				},
 			] satisfies QueryKey,
-		[statusFilter, sortBy, sortOrder],
+		[page, rowsPerPage, statusFilter, sortBy, sortOrder],
 	);
 
 	const {
@@ -422,12 +428,13 @@ export function ProjectsPage() {
 		queryKey,
 		queryFn: () =>
 			fetchProjects({
-				page: 1,
-				limit: 24,
+				page,
+				limit: rowsPerPage,
 				status: statusFilter === "ALL" ? undefined : statusFilter,
 				sort_by: sortBy,
 				sort_order: sortOrder,
 			}),
+		placeholderData: (prev) => prev,
 	});
 
 	const favoriteMutation = useMutation({
@@ -467,6 +474,14 @@ export function ProjectsPage() {
 	});
 
 	const projects = data?.projects ?? [];
+	const totalItems = data?.total_items ?? 0;
+	const totalPages = Math.max(1, data?.total_pages ?? 1);
+	const currentPage = Math.min(page, totalPages);
+	const startItem = totalItems === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
+	const endItem = Math.min(currentPage * rowsPerPage, totalItems);
+
+	const canGoPrev = currentPage > 1;
+	const canGoNext = currentPage < totalPages;
 
 	return (
 		<section className="space-y-5">
@@ -481,7 +496,7 @@ export function ProjectsPage() {
 					<div className="text-sm text-text-secondary">
 						{isPending
 							? "Loading projects..."
-							: `${data?.total_items ?? 0} total`}
+							: `${totalItems} total`}
 					</div>
 					<div className="relative">
 						<MdFilterList
@@ -490,9 +505,10 @@ export function ProjectsPage() {
 						/>
 						<select
 							value={statusFilter}
-							onChange={(e) =>
-								setStatusFilter(e.target.value as ProjectStatus | "ALL")
-							}
+							onChange={(e) => {
+								setStatusFilter(e.target.value as ProjectStatus | "ALL");
+								setPage(1);
+							}}
 							className={cn(
 								"h-9 cursor-pointer appearance-none rounded-lg border border-primary/15 bg-background-secondary py-1.5 pl-8 pr-3 text-sm text-text-primary",
 								"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
@@ -519,6 +535,7 @@ export function ProjectsPage() {
 								const [nextSortBy, nextSortOrder] = e.target.value.split(":");
 								setSortBy(nextSortBy as ProjectSortBy);
 								setSortOrder(nextSortOrder as ProjectSortOrder);
+								setPage(1);
 							}}
 							className={cn(
 								"h-9 cursor-pointer appearance-none rounded-lg border border-primary/15 bg-background-secondary py-1.5 pl-8 pr-3 text-sm text-text-primary",
@@ -572,7 +589,7 @@ export function ProjectsPage() {
 
 			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
 				{isPending
-					? Array.from({ length: 5 }, (_, idx) => (
+					? Array.from({ length: Math.min(6, rowsPerPage) }, (_, idx) => (
 							<ProjectCardSkeleton key={`project-skeleton-${idx}`} />
 						))
 					: projects.map((project) => (
@@ -600,6 +617,88 @@ export function ProjectsPage() {
 
 			{isRefetching && !isPending ? (
 				<p className="text-xs text-text-secondary">Refreshing projects...</p>
+			) : null}
+
+			{!isError && totalItems > 0 ? (
+				<footer className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-primary/10 bg-background-secondary p-3 text-sm text-text-secondary">
+					<div className="flex items-center gap-2">
+						<label htmlFor="projects-rows-per-page">Rows per page</label>
+						<select
+							id="projects-rows-per-page"
+							value={rowsPerPage}
+							onChange={(e) => {
+								setRowsPerPage(Number(e.target.value));
+								setPage(1);
+							}}
+							className={cn(
+								"h-8 cursor-pointer rounded-md border border-primary/15 bg-background-secondary px-2 text-sm text-text-primary",
+								"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
+							)}
+						>
+							<option value={6}>6</option>
+							<option value={12}>12</option>
+							<option value={24}>24</option>
+							<option value={36}>36</option>
+						</select>
+					</div>
+
+					<div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+						<p className="min-w-24 text-right tabular-nums">
+							{startItem}-{endItem} of {totalItems}
+						</p>
+
+						<div className="flex items-center gap-1">
+							<button
+								type="button"
+								onClick={() => setPage(1)}
+								disabled={!canGoPrev}
+								className={cn(
+									"rounded-md p-1.5 text-text-secondary transition-colors hover:bg-primary/10 hover:text-text-primary",
+									!canGoPrev && "cursor-not-allowed opacity-40",
+								)}
+								aria-label="First page"
+							>
+								<MdFirstPage className="h-5 w-5" aria-hidden />
+							</button>
+							<button
+								type="button"
+								onClick={() => setPage((p) => Math.max(1, p - 1))}
+								disabled={!canGoPrev}
+								className={cn(
+									"rounded-md p-1.5 text-text-secondary transition-colors hover:bg-primary/10 hover:text-text-primary",
+									!canGoPrev && "cursor-not-allowed opacity-40",
+								)}
+								aria-label="Previous page"
+							>
+								<MdChevronLeft className="h-5 w-5" aria-hidden />
+							</button>
+							<button
+								type="button"
+								onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+								disabled={!canGoNext}
+								className={cn(
+									"rounded-md p-1.5 text-text-secondary transition-colors hover:bg-primary/10 hover:text-text-primary",
+									!canGoNext && "cursor-not-allowed opacity-40",
+								)}
+								aria-label="Next page"
+							>
+								<MdChevronRight className="h-5 w-5" aria-hidden />
+							</button>
+							<button
+								type="button"
+								onClick={() => setPage(totalPages)}
+								disabled={!canGoNext}
+								className={cn(
+									"rounded-md p-1.5 text-text-secondary transition-colors hover:bg-primary/10 hover:text-text-primary",
+									!canGoNext && "cursor-not-allowed opacity-40",
+								)}
+								aria-label="Last page"
+							>
+								<MdLastPage className="h-5 w-5" aria-hidden />
+							</button>
+						</div>
+					</div>
+				</footer>
 			) : null}
 		</section>
 	);
