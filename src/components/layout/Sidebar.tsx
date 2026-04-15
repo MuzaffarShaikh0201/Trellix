@@ -97,7 +97,6 @@ export function Sidebar({ mobileOpen, onNavigate }: SidebarProps) {
 						)
 					}
 				>
-					{/* <MdHelpOutline className="h-4 w-4 shrink-0" aria-hidden /> */}
 					<span className="text-xs">Contact us</span>
 					<FiExternalLink className="inline-block" />
 				</NavLink>
@@ -111,7 +110,9 @@ export function Sidebar({ mobileOpen, onNavigate }: SidebarProps) {
 					</span>
 					<FiExternalLink className="inline-block" />
 				</NavLink>
-				<p className="px-2 pt-1 text-xs text-text-secondary">Trellix&trade;&copy; {year}</p>
+				<p className="px-2 pt-1 text-xs text-text-secondary">
+					&copy; Trellix&trade; {year}
+				</p>
 			</div>
 		</aside>
 	);

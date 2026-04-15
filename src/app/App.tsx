@@ -4,6 +4,7 @@ import { ProtectedRoute } from "@/app/ProtectedRoute";
 import { AppShell } from "@/components/layout/AppShell";
 import { AuthPage } from "@/pages/AuthPage";
 import { DashboardPage } from "@/pages/DashboardPage";
+import { ProjectsPage } from "@/pages/ProjectsPage";
 import { SectionPlaceholderPage } from "@/pages/SectionPlaceholderPage";
 import {
 	NotFoundPage,
@@ -28,7 +29,7 @@ function App() {
 				<Route index element={<DashboardPage />} />
 				<Route
 					path="projects"
-					element={<SectionPlaceholderPage title="Projects" />}
+					element={<ProjectsPage />}
 				/>
 				<Route
 					path="tasks"
