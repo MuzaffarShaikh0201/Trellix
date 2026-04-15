@@ -18,8 +18,6 @@ export type ProjectCategory =
 	| "HOME"
 	| "OTHER";
 
-export type ProjectPriority = "LOW" | "MEDIUM" | "HIGH";
-
 export type ProjectSortBy = "title" | "created_at" | "updated_at";
 export type ProjectSortOrder = "asc" | "desc";
 
@@ -30,7 +28,6 @@ export type Project = {
 	description: string | null;
 	status: ProjectStatus;
 	category: ProjectCategory;
-	priority: ProjectPriority;
 	start_date: string | null;
 	due_date: string | null;
 	completed_at: string | null;
@@ -43,7 +40,6 @@ export type Project = {
 export type GetProjectsParams = {
 	status?: ProjectStatus;
 	category?: ProjectCategory;
-	priority?: ProjectPriority;
 	is_favorite?: boolean;
 	page?: number;
 	limit?: number;

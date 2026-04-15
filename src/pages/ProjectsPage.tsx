@@ -32,7 +32,6 @@ import { showAlert } from "@/services/alertService";
 import type {
 	Project,
 	ProjectCategory,
-	ProjectPriority,
 	ProjectSortBy,
 	ProjectSortOrder,
 	ProjectStatus,
@@ -58,12 +57,6 @@ const statusClassMap: Record<ProjectStatus, string> = {
 	COMPLETED: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
 	CANCELLED: "bg-red-500/15 text-red-600 dark:text-red-400",
 	ARCHIVED: "bg-slate-500/15 text-slate-600 dark:text-slate-400",
-};
-
-const priorityClassMap: Record<ProjectPriority, string> = {
-	LOW: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
-	MEDIUM: "bg-orange-500/15 text-orange-600 dark:text-orange-400",
-	HIGH: "bg-red-500/15 text-red-600 dark:text-red-400",
 };
 
 type WorkItemStats = {
@@ -92,6 +85,27 @@ function formatDate(value: string | null): string {
 	} catch {
 		return value;
 	}
+}
+
+const PROJECT_TITLE_MAX_CHARS = 56;
+const PROJECT_DESCRIPTION_MAX_CHARS = 220;
+
+function normalizeInlineText(value: string) {
+	return value.replace(/\s+/g, " ").trim();
+}
+
+function truncateText(value: string, maxChars: number) {
+	const normalized = normalizeInlineText(value);
+	if (normalized.length <= maxChars) return normalized;
+	return `${normalized.slice(0, maxChars).trimEnd()}...`;
+}
+
+function truncateProjectTitle(value: string) {
+	return truncateText(value, PROJECT_TITLE_MAX_CHARS);
+}
+
+function truncateDescription(value: string, maxChars = PROJECT_DESCRIPTION_MAX_CHARS) {
+	return truncateText(value, maxChars);
 }
 
 function asNumber(value: unknown): number | null {
@@ -149,6 +163,10 @@ function ProjectCard({
 	favoritePending: boolean;
 }) {
 	const CategoryIcon = categoryIconMap[project.category] ?? MdCategory;
+	const normalizedTitle = normalizeInlineText(project.title);
+	const normalizedDescription = project.description?.trim()
+		? normalizeInlineText(project.description)
+		: null;
 	const workItems = parseWorkItemStats(project);
 	const progress =
 		workItems.total > 0
@@ -172,8 +190,11 @@ function ProjectCard({
 						<CategoryIcon className="h-5 w-5 text-primary" />
 					</div>
 					<div className="min-w-0">
-						<h3 className="truncate text-base font-semibold text-text-primary">
-							{project.title}
+						<h3
+							className="truncate text-base font-semibold text-text-primary"
+							title={normalizedTitle}
+						>
+							{truncateProjectTitle(project.title)}
 						</h3>
 						<p className="text-sm text-text-secondary">
 							{prettifyToken(project.category)}
@@ -216,18 +237,15 @@ function ProjectCard({
 				>
 					{prettifyToken(project.status)}
 				</span>
-				<span
-					className={cn(
-						"rounded-md px-2 py-1 text-xs font-medium",
-						priorityClassMap[project.priority],
-					)}
-				>
-					{prettifyToken(project.priority)} Priority
-				</span>
 			</div>
 
-			<p className="mt-4 line-clamp-3 text-sm text-text-secondary">
-				{project.description?.trim() || "No description added yet."}
+			<p
+				className="mt-4 break-words text-sm text-text-secondary"
+				title={normalizedDescription ?? undefined}
+			>
+				{normalizedDescription
+					? truncateDescription(normalizedDescription)
+					: "No description added yet."}
 			</p>
 
 			<div className="mt-5 grid grid-cols-1 gap-3 rounded-lg border border-primary/10 bg-tint p-3 sm:grid-cols-2">

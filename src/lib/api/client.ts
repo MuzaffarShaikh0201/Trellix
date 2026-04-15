@@ -19,7 +19,12 @@ async function refreshStoredSession(signal?: AbortSignal): Promise<boolean> {
 		return false;
 	}
 	try {
-		const session = await postSessionRefresh(stored.refresh_token, signal);
+		const previousAccessToken = getStoredAccessToken();
+		const session = await postSessionRefresh(
+			stored.refresh_token,
+			signal,
+			previousAccessToken ?? undefined,
+		);
 		setAuthSession(session);
 		return true;
 	} catch {

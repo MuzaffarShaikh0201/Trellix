@@ -14,11 +14,12 @@ async function parseJsonSafe(res: Response): Promise<unknown> {
 
 /**
  * POST `/refresh` with `refresh_token` as form-urlencoded payload.
- * Intentionally does not send `Authorization` so an expired access token does not interfere.
+ * Optionally includes `Authorization` with the previous access token when provided.
  */
 export async function postSessionRefresh(
 	refreshToken: string,
 	signal?: AbortSignal,
+	accessToken?: string,
 ): Promise<AuthSession> {
 	const base = getApiBaseUrl();
 	const normalizedPath = "/refresh";
@@ -29,6 +30,9 @@ export async function postSessionRefresh(
 	const headers = new Headers();
 	headers.set("Accept", "application/json");
 	headers.set("Content-Type", "application/x-www-form-urlencoded");
+	if (accessToken) {
+		headers.set("Authorization", `Bearer ${accessToken}`);
+	}
 
 	const form = new URLSearchParams();
 	form.set("refresh_token", refreshToken);
