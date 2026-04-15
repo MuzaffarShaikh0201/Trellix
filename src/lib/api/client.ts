@@ -42,12 +42,18 @@ type SearchParamsInput = Record<
 	string | number | boolean | undefined | null
 >;
 
+type FormInput = Record<string, string | number | boolean | undefined | null>;
+
 export type ApiRequestOptions = {
 	method?: string;
 	searchParams?: SearchParamsInput;
 	/** When true (default), send `Authorization: Bearer` if an access token exists. */
 	auth?: boolean;
 	signal?: AbortSignal;
+	headers?: HeadersInit;
+	json?: unknown;
+	form?: FormInput;
+	body?: BodyInit | null;
 };
 
 function buildUrl(path: string, searchParams?: SearchParamsInput): string {
@@ -85,17 +91,41 @@ export async function apiRequest<T>(
 	path: string,
 	options: ApiRequestOptions = {},
 ): Promise<T> {
-	const { method = "GET", searchParams, auth = true, signal } = options;
+	const {
+		method = "GET",
+		searchParams,
+		auth = true,
+		signal,
+		headers: requestHeaders,
+		json,
+		form,
+		body: rawBody,
+	} = options;
 	const url = buildUrl(path, searchParams);
 
-	const headers = new Headers();
+	const headers = new Headers(requestHeaders);
 	headers.set("Accept", "application/json");
 	if (auth) {
 		const token = getStoredAccessToken();
 		if (token) headers.set("Authorization", `Bearer ${token}`);
 	}
 
-	let res = await fetch(url, { method, headers, signal });
+	let requestBody: BodyInit | null | undefined = rawBody;
+	if (json !== undefined) {
+		headers.set("Content-Type", "application/json");
+		requestBody = JSON.stringify(json);
+	} else if (form !== undefined) {
+		headers.set("Content-Type", "application/x-www-form-urlencoded");
+		const encoded = new URLSearchParams();
+		for (const [key, value] of Object.entries(form)) {
+			if (value != null) {
+				encoded.set(key, String(value));
+			}
+		}
+		requestBody = encoded.toString();
+	}
+
+	let res = await fetch(url, { method, headers, body: requestBody, signal });
 
 	if (res.status === 401 && auth) {
 		const recovered = await refreshSessionOnce(signal);
@@ -103,7 +133,12 @@ export async function apiRequest<T>(
 			const token = getStoredAccessToken();
 			if (token) {
 				headers.set("Authorization", `Bearer ${token}`);
-				res = await fetch(url, { method, headers, signal });
+				res = await fetch(url, {
+					method,
+					headers,
+					body: requestBody,
+					signal,
+				});
 			}
 		}
 	}
@@ -114,12 +149,12 @@ export async function apiRequest<T>(
 	}
 
 	if (!res.ok) {
-		const body = await parseJsonSafe(res);
-		throw new ApiError(res.status, body);
+		const errorBody = await parseJsonSafe(res);
+		throw new ApiError(res.status, errorBody);
 	}
 
 	if (res.status === 204) return undefined as T;
 
-	const body = await parseJsonSafe(res);
-	return body as T;
+	const responseBody = await parseJsonSafe(res);
+	return responseBody as T;
 }

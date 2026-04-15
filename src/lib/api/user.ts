@@ -11,7 +11,7 @@ export function updateUserProfile(params: {
 }) {
 	return apiRequest<MessageResponse>("/user", {
 		method: "PUT",
-		searchParams: params,
+		json: params,
 	});
 }
 
@@ -21,6 +21,6 @@ export function updateUserPassword(params: {
 }) {
 	return apiRequest<MessageResponse>("/user", {
 		method: "PATCH",
-		searchParams: params,
+		form: params,
 	});
 }

@@ -13,7 +13,7 @@ async function parseJsonSafe(res: Response): Promise<unknown> {
 }
 
 /**
- * POST `/refresh` with `refresh_token` as a query param (Trellix API).
+ * POST `/refresh` with `refresh_token` as form-urlencoded payload.
  * Intentionally does not send `Authorization` so an expired access token does not interfere.
  */
 export async function postSessionRefresh(
@@ -26,13 +26,19 @@ export async function postSessionRefresh(
 		base !== ""
 			? `${base}${normalizedPath}`
 			: `${window.location.origin}${normalizedPath}`;
-	const url = new URL(href);
-	url.searchParams.set("refresh_token", refreshToken);
-
 	const headers = new Headers();
 	headers.set("Accept", "application/json");
+	headers.set("Content-Type", "application/x-www-form-urlencoded");
 
-	const res = await fetch(url.toString(), { method: "POST", headers, signal });
+	const form = new URLSearchParams();
+	form.set("refresh_token", refreshToken);
+
+	const res = await fetch(href, {
+		method: "POST",
+		headers,
+		body: form.toString(),
+		signal,
+	});
 
 	if (!res.ok) {
 		const body = await parseJsonSafe(res);

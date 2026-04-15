@@ -11,7 +11,7 @@ export function registerUser(params: RegisterParams) {
 	return apiRequest<MessageResponse>("/register", {
 		method: "POST",
 		auth: false,
-		searchParams: params,
+		form: params,
 	});
 }
 
@@ -19,7 +19,7 @@ export function loginUser(params: LoginParams) {
 	return apiRequest<AuthSession>("/login", {
 		method: "POST",
 		auth: false,
-		searchParams: params,
+		form: params,
 	});
 }
 
