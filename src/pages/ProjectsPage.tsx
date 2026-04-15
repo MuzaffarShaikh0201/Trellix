@@ -196,9 +196,14 @@ function ProjectCard({
 						>
 							{truncateProjectTitle(project.title)}
 						</h3>
-						<p className="text-sm text-text-secondary">
-							{prettifyToken(project.category)}
-						</p>
+						<span
+							className={cn(
+								"mt-1 inline-flex rounded-md px-2 py-0.5 text-xs font-medium",
+								statusClassMap[project.status],
+							)}
+						>
+							{prettifyToken(project.status)}
+						</span>
 					</div>
 				</div>
 				<div className="shrink-0 pt-0.5">
@@ -228,19 +233,8 @@ function ProjectCard({
 				</div>
 			</div>
 
-			<div className="mt-4 flex flex-wrap gap-2">
-				<span
-					className={cn(
-						"rounded-md px-2 py-1 text-xs font-medium",
-						statusClassMap[project.status],
-					)}
-				>
-					{prettifyToken(project.status)}
-				</span>
-			</div>
-
 			<p
-				className="mt-4 break-words text-sm text-text-secondary"
+				className="mt-3 break-words text-sm text-text-secondary"
 				title={normalizedDescription ?? undefined}
 			>
 				{normalizedDescription
@@ -248,8 +242,8 @@ function ProjectCard({
 					: "No description added yet."}
 			</p>
 
-			<div className="mt-5 grid grid-cols-1 gap-3 rounded-lg border border-primary/10 bg-tint p-3 sm:grid-cols-2">
-				<div>
+			<div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+				<div className="rounded-lg border border-primary/10 bg-tint p-3">
 					<p className="text-xs text-text-secondary">Work Items (%)</p>
 					<div className="mt-2 flex items-center gap-2 text-sm text-text-primary">
 						<span className="font-medium">{workItems.low}</span>
@@ -276,7 +270,7 @@ function ProjectCard({
 						/>
 					</div>
 				</div>
-				<div>
+				<div className="rounded-lg border border-primary/10 bg-tint p-3">
 					<p className="text-xs text-text-secondary">Task Progress</p>
 					<div className="mt-2 flex items-center justify-between text-sm">
 						<span className="font-medium text-text-primary">
