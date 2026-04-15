@@ -123,6 +123,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		return registerUser(params);
 	}, []);
 
+	const reloadUser = useCallback(async () => {
+		if (!hasSession) return;
+		const u = await fetchCurrentUser();
+		setUser(u);
+	}, [hasSession]);
+
 	const refreshSession = useCallback(async () => {
 		const stored = readAuthSession();
 		if (!stored?.refresh_token) {
@@ -157,8 +163,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			logout,
 			register,
 			refreshSession,
+			reloadUser,
 		}),
-		[user, hasSession, login, logout, register, refreshSession],
+		[user, hasSession, login, logout, register, refreshSession, reloadUser],
 	);
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

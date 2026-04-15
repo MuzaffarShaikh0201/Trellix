@@ -12,6 +12,7 @@ import {
 } from "@/pages/HttpErrorPages";
 import { ContactPage } from "@/pages/ContactPage";
 import { LegalInfoPage } from "@/pages/LegalInfoPage";
+import { ProfilePage } from "@/pages/ProfilePage";
 
 function App() {
 	return (
@@ -51,7 +52,7 @@ function App() {
 				/>
 				<Route
 					path="profile"
-					element={<SectionPlaceholderPage title="Your profile" />}
+					element={<ProfilePage />}
 				/>
 				<Route path="contact" element={<ContactPage />} />
 			</Route>
