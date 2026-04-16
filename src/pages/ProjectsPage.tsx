@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
 import {
 	useMutation,
 	useQuery,
@@ -20,6 +20,7 @@ import {
 	MdFlightTakeoff,
 	MdHomeWork,
 	MdLastPage,
+	MdClose,
 	MdPalette,
 	MdPersonOutline,
 	MdRocketLaunch,
@@ -29,7 +30,9 @@ import {
 } from "react-icons/md";
 
 import Button from "@/components/ui/Button";
-import { fetchProjects, toggleProjectFavorite } from "@/lib/api/projects";
+import FormField from "@/components/ui/FormField";
+import { CustomLoader } from "@/components/ui/CustomLoader";
+import { createProject, fetchProjects, toggleProjectFavorite } from "@/lib/api/projects";
 import { getRequestErrorMessage } from "@/lib/getRequestErrorMessage";
 import { cn } from "@/lib/utils";
 import { showAlert } from "@/services/alertService";
@@ -86,6 +89,19 @@ const CATEGORY_FILTER_OPTIONS: { value: ProjectCategory | "ALL"; label: string }
 	{ value: "OTHER", label: "Other" },
 ];
 
+const CREATE_CATEGORY_OPTIONS: { value: ProjectCategory; label: string }[] = [
+	{ value: "WORK", label: "Work" },
+	{ value: "PERSONAL", label: "Personal" },
+	{ value: "LEARNING", label: "Learning" },
+	{ value: "HEALTH", label: "Health" },
+	{ value: "FINANCE", label: "Finance" },
+	{ value: "SIDE_PROJECT", label: "Side project" },
+	{ value: "CREATIVE", label: "Creative" },
+	{ value: "TRAVEL", label: "Travel" },
+	{ value: "HOME", label: "Home" },
+	{ value: "OTHER", label: "Other" },
+];
+
 const SORT_BY_OPTIONS: { value: ProjectSortBy; label: string }[] = [
 	{ value: "updated_at", label: "Recently updated" },
 	{ value: "created_at", label: "Recently created" },
@@ -95,6 +111,14 @@ const SORT_BY_OPTIONS: { value: ProjectSortBy; label: string }[] = [
 const SORT_ORDER_OPTIONS: { value: ProjectSortOrder; label: string }[] = [
 	{ value: "asc", label: "Ascending" },
 	{ value: "desc", label: "Descending" },
+];
+
+type ProjectTab = "ALL" | "FAVORITES" | "ARCHIVED";
+
+const PROJECT_TABS: { value: ProjectTab; label: string }[] = [
+	{ value: "ALL", label: "All" },
+	{ value: "FAVORITES", label: "Favorites" },
+	{ value: "ARCHIVED", label: "Archived" },
 ];
 
 type WorkItemStats = {
@@ -400,7 +424,7 @@ function ProjectCardSkeleton() {
 	);
 }
 
-function CreateProjectCard() {
+function CreateProjectCard({ onCreate }: { onCreate: () => void }) {
 	return (
 		<article className="flex min-h-72 flex-col items-center justify-center rounded-xl border border-dashed border-primary/35 bg-background-secondary p-5 text-center shadow-sm">
 			<div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-tint">
@@ -415,13 +439,7 @@ function CreateProjectCard() {
 			<div className="mt-5 w-full max-w-[11rem]">
 				<Button
 					title="Create Project"
-					onClick={() =>
-						showAlert(
-							"Coming soon",
-							"info",
-							"Project creation flow will be available soon.",
-						)
-					}
+					onClick={onCreate}
 				/>
 			</div>
 		</article>
@@ -430,6 +448,7 @@ function CreateProjectCard() {
 
 export function ProjectsPage() {
 	const queryClient = useQueryClient();
+	const [activeTab, setActiveTab] = useState<ProjectTab>("ALL");
 	const [statusFilter, setStatusFilter] = useState<ProjectStatus | "ALL">("ALL");
 	const [categoryFilter, setCategoryFilter] = useState<ProjectCategory | "ALL">("ALL");
 	const [sortBy, setSortBy] = useState<ProjectSortBy>("updated_at");
@@ -442,20 +461,46 @@ export function ProjectsPage() {
 	const sortRootRef = useRef<HTMLDivElement>(null);
 	const controlsId = useId();
 
+	const [createModalOpen, setCreateModalOpen] = useState(false);
+	const [createTitle, setCreateTitle] = useState("");
+	const [createDescription, setCreateDescription] = useState("");
+	const [createCategory, setCreateCategory] = useState<ProjectCategory>("WORK");
+	const [createStartDate, setCreateStartDate] = useState("");
+	const [createDueDate, setCreateDueDate] = useState("");
+	const [createSubmitting, setCreateSubmitting] = useState(false);
+	const effectiveStatusFilter: ProjectStatus | undefined =
+		activeTab === "ARCHIVED"
+			? "ARCHIVED"
+			: statusFilter === "ALL"
+				? undefined
+				: statusFilter;
+	const favoriteOnly = activeTab === "FAVORITES" ? true : undefined;
+
 	const queryKey = useMemo(
 		() =>
 			[
 				"projects",
 				{
+					tab: activeTab,
 					page,
 					limit: rowsPerPage,
-					status: statusFilter,
+					status: effectiveStatusFilter,
 					category: categoryFilter,
+					is_favorite: favoriteOnly,
 					sort_by: sortBy,
 					sort_order: sortOrder,
 				},
 			] satisfies QueryKey,
-		[page, rowsPerPage, statusFilter, categoryFilter, sortBy, sortOrder],
+		[
+			activeTab,
+			page,
+			rowsPerPage,
+			effectiveStatusFilter,
+			categoryFilter,
+			favoriteOnly,
+			sortBy,
+			sortOrder,
+		],
 	);
 
 	useEffect(() => {
@@ -481,6 +526,7 @@ export function ProjectsPage() {
 			if (event.key === "Escape") {
 				setFilterModalOpen(false);
 				setSortModalOpen(false);
+				setCreateModalOpen(false);
 			}
 		}
 
@@ -490,7 +536,16 @@ export function ProjectsPage() {
 			document.removeEventListener("pointerdown", onPointerDown);
 			document.removeEventListener("keydown", onKeyDown);
 		};
-	}, [filterModalOpen, sortModalOpen]);
+	}, [filterModalOpen, sortModalOpen, createModalOpen]);
+
+	useEffect(() => {
+		if (!createModalOpen) return;
+		const prev = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
+		return () => {
+			document.body.style.overflow = prev;
+		};
+	}, [createModalOpen]);
 
 	const {
 		data,
@@ -505,8 +560,9 @@ export function ProjectsPage() {
 			fetchProjects({
 				page,
 				limit: rowsPerPage,
-				status: statusFilter === "ALL" ? undefined : statusFilter,
+				status: effectiveStatusFilter,
 				category: categoryFilter === "ALL" ? undefined : categoryFilter,
+				is_favorite: favoriteOnly,
 				sort_by: sortBy,
 				sort_order: sortOrder,
 			}),
@@ -558,12 +614,85 @@ export function ProjectsPage() {
 
 	const canGoPrev = currentPage > 1;
 	const canGoNext = currentPage < totalPages;
-	const handleCreateProjectClick = () =>
-		showAlert(
-			"Coming soon",
-			"info",
-			"Project creation flow will be available soon.",
-		);
+	function resetCreateForm() {
+		setCreateTitle("");
+		setCreateDescription("");
+		setCreateCategory("WORK");
+		setCreateStartDate("");
+		setCreateDueDate("");
+	}
+
+	function openCreateModal() {
+		setFilterModalOpen(false);
+		setSortModalOpen(false);
+		setCreateModalOpen(true);
+	}
+
+	function closeCreateModal() {
+		setCreateModalOpen(false);
+		setCreateSubmitting(false);
+		resetCreateForm();
+	}
+
+	function handleCreateSubmit(e: FormEvent<HTMLFormElement>) {
+		e.preventDefault();
+
+		const title = createTitle.trim();
+		if (!title) {
+			showAlert("Validation Error", "warning", "Project title is required.");
+			return;
+		}
+		if (!createStartDate) {
+			showAlert(
+				"Validation Error",
+				"warning",
+				"Start date is required.",
+			);
+			return;
+		}
+
+		setCreateSubmitting(true);
+		void (async () => {
+			try {
+				await createProject({
+					title,
+					description: createDescription.trim() || null,
+					category: createCategory,
+					status: "PENDING",
+					start_date: createStartDate,
+					due_date: createDueDate || null,
+				});
+				showAlert(
+					"Project created",
+					"success",
+					"Your project has been created.",
+				);
+
+				// Refresh current tab results.
+				await queryClient.invalidateQueries({ queryKey: ["projects"] });
+				closeCreateModal();
+			} catch (err) {
+				showAlert(
+					"Create failed",
+					"error",
+					getRequestErrorMessage(
+						err,
+						"Something went wrong while creating your project.",
+					),
+				);
+			} finally {
+				setCreateSubmitting(false);
+			}
+		})();
+	}
+
+	const handleCreateProjectClick = openCreateModal;
+	const emptyStateMessage =
+		activeTab === "FAVORITES"
+			? "No favorite projects found yet."
+			: activeTab === "ARCHIVED"
+				? "No archived projects found yet."
+				: "No projects found yet. Use the card above to create your first one.";
 
 	return (
 		<section className="space-y-5">
@@ -573,6 +702,30 @@ export function ProjectsPage() {
 					<p className="mt-1 text-sm text-text-secondary">
 						Track all your projects in one place.
 					</p>
+					<div className="mt-3 flex items-center gap-1 border-b border-primary/10">
+						{PROJECT_TABS.map((tab) => {
+							const isActive = activeTab === tab.value;
+							return (
+								<button
+									key={tab.value}
+									type="button"
+									onClick={() => {
+										setActiveTab(tab.value);
+										setPage(1);
+									}}
+									className={cn(
+										"-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+										isActive
+											? "border-primary text-primary"
+											: "border-transparent text-text-secondary hover:text-text-primary",
+									)}
+									aria-pressed={isActive}
+								>
+									{tab.label}
+								</button>
+							);
+						})}
+					</div>
 				</div>
 				<div className="ml-auto flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
 					<div className="whitespace-nowrap text-xs text-text-secondary sm:text-sm">
@@ -605,29 +758,33 @@ export function ProjectsPage() {
 							>
 								<p className="text-sm font-semibold text-text-primary">Filters</p>
 								<div className="mt-3 space-y-3">
-									<div>
-										<label className="text-xs font-medium uppercase tracking-wide text-text-secondary">
-											Status
-										</label>
-										<select
-											value={statusFilter}
-											onChange={(e) => {
-												setStatusFilter(e.target.value as ProjectStatus | "ALL");
-												setPage(1);
-											}}
-											className={cn(
-												"mt-1.5 h-9 w-full cursor-pointer rounded-lg border border-primary/15 bg-tint px-3 text-sm text-text-primary",
-												"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
-											)}
-											aria-label="Filter projects by status"
-										>
-											{STATUS_FILTER_OPTIONS.map((option) => (
-												<option key={option.value} value={option.value}>
-													{option.label}
-												</option>
-											))}
-										</select>
-									</div>
+									{activeTab !== "ARCHIVED" ? (
+										<div>
+											<label className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+												Status
+											</label>
+											<select
+												value={statusFilter}
+												onChange={(e) => {
+													setStatusFilter(
+														e.target.value as ProjectStatus | "ALL",
+													);
+													setPage(1);
+												}}
+												className={cn(
+													"mt-1.5 h-9 w-full cursor-pointer rounded-lg border border-primary/15 bg-tint px-3 text-sm text-text-primary",
+													"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
+												)}
+												aria-label="Filter projects by status"
+											>
+												{STATUS_FILTER_OPTIONS.map((option) => (
+													<option key={option.value} value={option.value}>
+														{option.label}
+													</option>
+												))}
+											</select>
+										</div>
+									) : null}
 									<div>
 										<label className="text-xs font-medium uppercase tracking-wide text-text-secondary">
 											Category
@@ -795,12 +952,14 @@ export function ProjectsPage() {
 							/>
 						))}
 
-				<CreateProjectCard />
+				{activeTab === "ALL" ? (
+					<CreateProjectCard onCreate={handleCreateProjectClick} />
+				) : null}
 			</div>
 
 			{!isPending && !isError && projects.length === 0 ? (
 				<p className="text-sm text-text-secondary">
-					No projects found yet. Use the card above to create your first one.
+					{emptyStateMessage}
 				</p>
 			) : null}
 
@@ -888,6 +1047,143 @@ export function ProjectsPage() {
 						</div>
 					</div>
 				</footer>
+			) : null}
+
+			{createModalOpen ? (
+				<div
+					className="fixed inset-0 z-[70] bg-black/45 backdrop-blur-[1px]"
+					role="presentation"
+					onClick={() => closeCreateModal()}
+				>
+					<div
+						role="dialog"
+						aria-modal="true"
+						aria-label="Create project"
+						onClick={(e) => e.stopPropagation()}
+						className={cn(
+							"absolute left-1/2 top-1/2 w-[calc(100vw-2rem)] max-w-[38rem] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-primary/10 bg-background-secondary p-5 shadow-lg sm:p-6",
+						)}
+					>
+						<div className="flex items-start justify-between gap-4">
+							<div>
+								<p className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+									Create project
+								</p>
+								<h2 className="mt-2 text-xl font-bold text-text-primary">
+									New project
+								</h2>
+								<p className="mt-1 text-sm text-text-secondary">
+									Add details to organize your work.
+								</p>
+							</div>
+							<button
+								type="button"
+								onClick={() => closeCreateModal()}
+								className="flex h-9 w-9 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-tint hover:text-text-primary"
+								aria-label="Close create project modal"
+							>
+								<MdClose className="h-5 w-5" aria-hidden />
+							</button>
+						</div>
+
+						<form onSubmit={handleCreateSubmit} className="mt-5 space-y-4">
+							<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+								<div className="sm:col-span-2">
+									<FormField
+										title="Title"
+										placeholder="e.g. Build the Trellix dashboard"
+										type="text"
+										value={createTitle}
+										handleChange={(e) => setCreateTitle(e.target.value)}
+										autoComplete="off"
+									/>
+								</div>
+
+								<div className="sm:col-span-2">
+									<FormField
+										title="Description"
+										placeholder="Short description (optional)"
+										type="text"
+										value={createDescription}
+										handleChange={(e) =>
+											setCreateDescription(e.target.value)
+										}
+										autoComplete="off"
+									/>
+								</div>
+
+								<div>
+									<label className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+										Category
+									</label>
+									<select
+										value={createCategory}
+										onChange={(e) =>
+											setCreateCategory(e.target.value as ProjectCategory)
+										}
+										className={cn(
+											"mt-1.5 h-9 w-full cursor-pointer rounded-lg border border-primary/15 bg-tint px-3 text-sm text-text-primary",
+											"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
+										)}
+										aria-label="Project category"
+									>
+										{CREATE_CATEGORY_OPTIONS.map((option) => (
+											<option key={option.value} value={option.value}>
+												{option.label}
+											</option>
+										))}
+									</select>
+								</div>
+
+								<div>
+									<FormField
+										title="Start date"
+										placeholder=""
+										type="date"
+										value={createStartDate}
+										handleChange={(e) => setCreateStartDate(e.target.value)}
+									/>
+								</div>
+
+								<div>
+									<FormField
+										title="Due date"
+										placeholder=""
+										type="date"
+										value={createDueDate}
+										handleChange={(e) => setCreateDueDate(e.target.value)}
+									/>
+								</div>
+							</div>
+
+							<div className="flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:justify-end">
+								<button
+									type="button"
+									onClick={() => closeCreateModal()}
+									className="rounded-lg bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+								>
+									Cancel
+								</button>
+								<div className="w-full sm:w-40">
+									<Button
+										type="submit"
+										title="Create Project"
+										disabled={createSubmitting}
+										loading={createSubmitting}
+										loader={
+											<CustomLoader
+												size={24}
+												color="#ffffff"
+												containerStyle={{ width: 24, height: 24 }}
+												aria-label="Creating project"
+											/>
+										}
+									/>
+								</div>
+							</div>
+						</form>
+					</div>
+				</div>
 			) : null}
 		</section>
 	);

@@ -54,3 +54,16 @@ export type GetProjectsResponse = {
 	current_page: number;
 	items_per_page: number;
 };
+
+export type CreateProjectParams = {
+	title: string;
+	description?: string | null;
+	category: ProjectCategory;
+	/**
+	 * If the backend supports defaults, this can be omitted.
+	 * The create UI doesn't expose it, so we send an initial value.
+	 */
+	status?: ProjectStatus;
+	start_date: string;
+	due_date?: string | null;
+};
