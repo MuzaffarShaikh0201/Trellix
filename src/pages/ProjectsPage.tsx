@@ -91,7 +91,7 @@ export function ProjectsPage() {
 	const [sortBy, setSortBy] = useState<ProjectSortBy>("updated_at");
 	const [sortOrder, setSortOrder] = useState<ProjectSortOrder>("desc");
 	const [page, setPage] = useState(1);
-	const [rowsPerPage, setRowsPerPage] = useState(12);
+	const [rowsPerPage, setRowsPerPage] = useState(6);
 	const [filterModalOpen, setFilterModalOpen] = useState(false);
 	const [sortModalOpen, setSortModalOpen] = useState(false);
 	const filterRootRef = useRef<HTMLDivElement>(null);
@@ -203,7 +203,6 @@ export function ProjectsPage() {
 				sort_by: sortBy,
 				sort_order: sortOrder,
 			}),
-		placeholderData: (prev) => prev,
 	});
 
 	const favoriteMutation = useMutation({
@@ -572,7 +571,7 @@ export function ProjectsPage() {
 
 			<div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
 				{isPending
-					? Array.from({ length: Math.min(6, rowsPerPage) }, (_, idx) => (
+					? Array.from({ length: rowsPerPage }, (_, idx) => (
 							<ProjectCardSkeleton key={`project-skeleton-${idx}`} />
 						))
 					: projects.map((project) => (

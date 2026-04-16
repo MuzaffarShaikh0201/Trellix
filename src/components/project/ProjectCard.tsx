@@ -159,9 +159,9 @@ export function ProjectCard({
 		workItems.total > 0 ? (workItems.high / workItems.total) * 100 : 0;
 
 	return (
-		<article className="group flex h-[27rem] flex-col rounded-xl border border-primary/15 bg-background-secondary p-4 shadow-sm transition-colors hover:border-primary/30">
+		<article className="group flex h-[19rem] flex-col rounded-xl border border-primary/15 bg-background-secondary p-4 shadow-sm transition-colors hover:border-primary/30">
 			<div className="flex items-start justify-between gap-3">
-				<div className="flex min-w-0 items-center gap-3">
+				<div className="flex min-w-0 items-center gap-2">
 					<div
 						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-tint"
 						aria-hidden
@@ -170,7 +170,7 @@ export function ProjectCard({
 					</div>
 					<div className="min-w-0">
 						<h3
-							className="h-12 overflow-hidden break-words text-base font-semibold leading-6 text-text-primary"
+							className="h-6 overflow-hidden break-words text-base font-semibold leading-6 text-text-primary"
 							title={normalizedTitle}
 						>
 							{truncateProjectTitle(project.title)}
