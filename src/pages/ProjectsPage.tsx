@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
 	useMutation,
 	useQuery,
@@ -62,6 +62,40 @@ const statusClassMap: Record<ProjectStatus, string> = {
 	CANCELLED: "bg-red-500/15 text-red-600 dark:text-red-400",
 	ARCHIVED: "bg-slate-500/15 text-slate-600 dark:text-slate-400",
 };
+
+const STATUS_FILTER_OPTIONS: { value: ProjectStatus | "ALL"; label: string }[] = [
+	{ value: "ALL", label: "All statuses" },
+	{ value: "ACTIVE", label: "Active" },
+	{ value: "PENDING", label: "Pending" },
+	{ value: "ON_HOLD", label: "On hold" },
+	{ value: "COMPLETED", label: "Completed" },
+	{ value: "CANCELLED", label: "Cancelled" },
+];
+
+const CATEGORY_FILTER_OPTIONS: { value: ProjectCategory | "ALL"; label: string }[] = [
+	{ value: "ALL", label: "All categories" },
+	{ value: "WORK", label: "Work" },
+	{ value: "PERSONAL", label: "Personal" },
+	{ value: "LEARNING", label: "Learning" },
+	{ value: "HEALTH", label: "Health" },
+	{ value: "FINANCE", label: "Finance" },
+	{ value: "SIDE_PROJECT", label: "Side project" },
+	{ value: "CREATIVE", label: "Creative" },
+	{ value: "TRAVEL", label: "Travel" },
+	{ value: "HOME", label: "Home" },
+	{ value: "OTHER", label: "Other" },
+];
+
+const SORT_BY_OPTIONS: { value: ProjectSortBy; label: string }[] = [
+	{ value: "updated_at", label: "Recently updated" },
+	{ value: "created_at", label: "Recently created" },
+	{ value: "title", label: "Title" },
+];
+
+const SORT_ORDER_OPTIONS: { value: ProjectSortOrder; label: string }[] = [
+	{ value: "asc", label: "Ascending" },
+	{ value: "desc", label: "Descending" },
+];
 
 type WorkItemStats = {
 	low: number;
@@ -397,10 +431,16 @@ function CreateProjectCard() {
 export function ProjectsPage() {
 	const queryClient = useQueryClient();
 	const [statusFilter, setStatusFilter] = useState<ProjectStatus | "ALL">("ALL");
+	const [categoryFilter, setCategoryFilter] = useState<ProjectCategory | "ALL">("ALL");
 	const [sortBy, setSortBy] = useState<ProjectSortBy>("updated_at");
 	const [sortOrder, setSortOrder] = useState<ProjectSortOrder>("desc");
 	const [page, setPage] = useState(1);
 	const [rowsPerPage, setRowsPerPage] = useState(12);
+	const [filterModalOpen, setFilterModalOpen] = useState(false);
+	const [sortModalOpen, setSortModalOpen] = useState(false);
+	const filterRootRef = useRef<HTMLDivElement>(null);
+	const sortRootRef = useRef<HTMLDivElement>(null);
+	const controlsId = useId();
 
 	const queryKey = useMemo(
 		() =>
@@ -410,12 +450,47 @@ export function ProjectsPage() {
 					page,
 					limit: rowsPerPage,
 					status: statusFilter,
+					category: categoryFilter,
 					sort_by: sortBy,
 					sort_order: sortOrder,
 				},
 			] satisfies QueryKey,
-		[page, rowsPerPage, statusFilter, sortBy, sortOrder],
+		[page, rowsPerPage, statusFilter, categoryFilter, sortBy, sortOrder],
 	);
+
+	useEffect(() => {
+		function onPointerDown(event: PointerEvent) {
+			const target = event.target as Node;
+			if (
+				filterModalOpen &&
+				filterRootRef.current &&
+				!filterRootRef.current.contains(target)
+			) {
+				setFilterModalOpen(false);
+			}
+			if (
+				sortModalOpen &&
+				sortRootRef.current &&
+				!sortRootRef.current.contains(target)
+			) {
+				setSortModalOpen(false);
+			}
+		}
+
+		function onKeyDown(event: KeyboardEvent) {
+			if (event.key === "Escape") {
+				setFilterModalOpen(false);
+				setSortModalOpen(false);
+			}
+		}
+
+		document.addEventListener("pointerdown", onPointerDown);
+		document.addEventListener("keydown", onKeyDown);
+		return () => {
+			document.removeEventListener("pointerdown", onPointerDown);
+			document.removeEventListener("keydown", onKeyDown);
+		};
+	}, [filterModalOpen, sortModalOpen]);
 
 	const {
 		data,
@@ -431,6 +506,7 @@ export function ProjectsPage() {
 				page,
 				limit: rowsPerPage,
 				status: statusFilter === "ALL" ? undefined : statusFilter,
+				category: categoryFilter === "ALL" ? undefined : categoryFilter,
 				sort_by: sortBy,
 				sort_order: sortOrder,
 			}),
@@ -482,6 +558,12 @@ export function ProjectsPage() {
 
 	const canGoPrev = currentPage > 1;
 	const canGoNext = currentPage < totalPages;
+	const handleCreateProjectClick = () =>
+		showAlert(
+			"Coming soon",
+			"info",
+			"Project creation flow will be available soon.",
+		);
 
 	return (
 		<section className="space-y-5">
@@ -492,75 +574,182 @@ export function ProjectsPage() {
 						Track all your projects in one place.
 					</p>
 				</div>
-				<div className="flex flex-wrap items-center justify-end gap-2">
-					<div className="text-sm text-text-secondary">
+				<div className="ml-auto flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+					<div className="whitespace-nowrap text-xs text-text-secondary sm:text-sm">
 						{isPending
 							? "Loading projects..."
 							: `${totalItems} total`}
 					</div>
-					<div className="relative">
-						<MdFilterList
-							className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary"
-							aria-hidden
-						/>
-						<select
-							value={statusFilter}
-							onChange={(e) => {
-								setStatusFilter(e.target.value as ProjectStatus | "ALL");
-								setPage(1);
+					<div ref={filterRootRef} className="relative">
+						<button
+							type="button"
+							onClick={() => {
+								setFilterModalOpen((v) => !v);
+								setSortModalOpen(false);
 							}}
-							className={cn(
-								"h-9 cursor-pointer appearance-none rounded-lg border border-primary/15 bg-background-secondary py-1.5 pl-8 pr-3 text-sm text-text-primary",
-								"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
-							)}
-							aria-label="Filter projects by status"
+							className="flex h-9 w-9 cursor-pointer items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
+							title="Open filters"
+							aria-label="Open filters"
+							aria-haspopup="dialog"
+							aria-expanded={filterModalOpen}
+							aria-controls={filterModalOpen ? `${controlsId}-filter-modal` : undefined}
 						>
-							<option value="ALL">All statuses</option>
-							<option value="ACTIVE">Active</option>
-							<option value="PENDING">Pending</option>
-							<option value="ON_HOLD">On hold</option>
-							<option value="COMPLETED">Completed</option>
-							<option value="CANCELLED">Cancelled</option>
-							<option value="ARCHIVED">Archived</option>
-						</select>
+							<MdFilterList className="h-5 w-5" aria-hidden />
+						</button>
+						{filterModalOpen ? (
+							<div
+								id={`${controlsId}-filter-modal`}
+								role="dialog"
+								aria-label="Filter projects"
+								className="absolute right-0 top-full z-50 mt-2 w-[min(100vw-2rem,19rem)] rounded-xl border border-primary/10 bg-background-secondary p-4 shadow-lg"
+							>
+								<p className="text-sm font-semibold text-text-primary">Filters</p>
+								<div className="mt-3 space-y-3">
+									<div>
+										<label className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+											Status
+										</label>
+										<select
+											value={statusFilter}
+											onChange={(e) => {
+												setStatusFilter(e.target.value as ProjectStatus | "ALL");
+												setPage(1);
+											}}
+											className={cn(
+												"mt-1.5 h-9 w-full cursor-pointer rounded-lg border border-primary/15 bg-tint px-3 text-sm text-text-primary",
+												"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
+											)}
+											aria-label="Filter projects by status"
+										>
+											{STATUS_FILTER_OPTIONS.map((option) => (
+												<option key={option.value} value={option.value}>
+													{option.label}
+												</option>
+											))}
+										</select>
+									</div>
+									<div>
+										<label className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+											Category
+										</label>
+										<select
+											value={categoryFilter}
+											onChange={(e) => {
+												setCategoryFilter(
+													e.target.value as ProjectCategory | "ALL",
+												);
+												setPage(1);
+											}}
+											className={cn(
+												"mt-1.5 h-9 w-full cursor-pointer rounded-lg border border-primary/15 bg-tint px-3 text-sm text-text-primary",
+												"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
+											)}
+											aria-label="Filter projects by category"
+										>
+											{CATEGORY_FILTER_OPTIONS.map((option) => (
+												<option key={option.value} value={option.value}>
+													{option.label}
+												</option>
+											))}
+										</select>
+									</div>
+								</div>
+							</div>
+						) : null}
 					</div>
-					<div className="relative">
-						<MdSort
-							className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary"
-							aria-hidden
-						/>
-						<select
-							value={`${sortBy}:${sortOrder}`}
-							onChange={(e) => {
-								const [nextSortBy, nextSortOrder] = e.target.value.split(":");
-								setSortBy(nextSortBy as ProjectSortBy);
-								setSortOrder(nextSortOrder as ProjectSortOrder);
-								setPage(1);
+					<div ref={sortRootRef} className="relative">
+						<button
+							type="button"
+							onClick={() => {
+								setSortModalOpen((v) => !v);
+								setFilterModalOpen(false);
 							}}
-							className={cn(
-								"h-9 cursor-pointer appearance-none rounded-lg border border-primary/15 bg-background-secondary py-1.5 pl-8 pr-3 text-sm text-text-primary",
-								"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
-							)}
-							aria-label="Sort projects"
+							className="flex h-9 w-9 cursor-pointer items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
+							title="Open sorting options"
+							aria-label="Open sorting options"
+							aria-haspopup="dialog"
+							aria-expanded={sortModalOpen}
+							aria-controls={sortModalOpen ? `${controlsId}-sort-modal` : undefined}
 						>
-							<option value="updated_at:desc">Recently updated</option>
-							<option value="created_at:desc">Recently created</option>
-							<option value="title:asc">Title (A-Z)</option>
-							<option value="title:desc">Title (Z-A)</option>
-						</select>
+							<MdSort className="h-5 w-5" aria-hidden />
+						</button>
+						{sortModalOpen ? (
+							<div
+								id={`${controlsId}-sort-modal`}
+								role="dialog"
+								aria-label="Sort projects"
+								className="absolute right-0 top-full z-50 mt-2 w-[min(100vw-2rem,19rem)] rounded-xl border border-primary/10 bg-background-secondary p-4 shadow-lg"
+							>
+								<p className="text-sm font-semibold text-text-primary">Sorting</p>
+								<div className="mt-3 space-y-3">
+									<div>
+										<label className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+											Sort by
+										</label>
+										<select
+											value={sortBy}
+											onChange={(e) => {
+												setSortBy(e.target.value as ProjectSortBy);
+												setPage(1);
+											}}
+											className={cn(
+												"mt-1.5 h-9 w-full cursor-pointer rounded-lg border border-primary/15 bg-tint px-3 text-sm text-text-primary",
+												"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
+											)}
+											aria-label="Sort projects by field"
+										>
+											{SORT_BY_OPTIONS.map((option) => (
+												<option key={option.value} value={option.value}>
+													{option.label}
+												</option>
+											))}
+										</select>
+									</div>
+									<div>
+										<label className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+											Order
+										</label>
+										<select
+											value={sortOrder}
+											onChange={(e) => {
+												setSortOrder(e.target.value as ProjectSortOrder);
+												setPage(1);
+											}}
+											className={cn(
+												"mt-1.5 h-9 w-full cursor-pointer rounded-lg border border-primary/15 bg-tint px-3 text-sm text-text-primary",
+												"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
+											)}
+											aria-label="Sort order"
+										>
+											{SORT_ORDER_OPTIONS.map((option) => (
+												<option key={option.value} value={option.value}>
+													{option.label}
+												</option>
+											))}
+										</select>
+									</div>
+								</div>
+							</div>
+						) : null}
 					</div>
-					<div className="w-full sm:w-auto">
+					<div className="w-auto">
+						<button
+							type="button"
+							aria-label="Create Project"
+							title="Create Project"
+							onClick={handleCreateProjectClick}
+							className={cn(
+								"flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-primary bg-primary text-white transition-colors hover:bg-blue-600",
+								"sm:hidden",
+							)}
+						>
+							<MdAdd className="h-5 w-5" aria-hidden />
+						</button>
 						<Button
 							title="Create Project"
 							imgSrc={<MdAdd className="h-5 w-5" />}
-							className="sm:min-w-40"
-							onClick={() =>
-								showAlert(
-									"Coming soon",
-									"info",
-									"Project creation flow will be available soon.",
-								)
-							}
+							className="hidden sm:min-w-40 sm:block"
+							onClick={handleCreateProjectClick}
 						/>
 					</div>
 				</div>
