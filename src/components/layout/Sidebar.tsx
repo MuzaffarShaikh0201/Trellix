@@ -47,7 +47,7 @@ export function Sidebar({ mobileOpen, onNavigate }: SidebarProps) {
 				"max-lg:shadow-xl",
 				mobileOpen ? "max-lg:translate-x-0" : "max-lg:-translate-x-full",
 				!mobileOpen && "max-lg:pointer-events-none",
-				"lg:static lg:top-auto lg:z-auto lg:h-auto lg:min-h-dvh lg:w-64 lg:translate-x-0 lg:shadow-none lg:pointer-events-auto",
+				"lg:fixed lg:left-0 lg:top-0 lg:z-40 lg:h-dvh lg:w-64 lg:translate-x-0 lg:shadow-none lg:pointer-events-auto",
 			)}
 		>
 			<div className="flex items-center gap-2 px-4 pb-6 pt-4 sm:px-5">

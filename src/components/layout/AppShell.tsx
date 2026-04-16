@@ -41,12 +41,12 @@ export function AppShell() {
 
 	return (
 		<>
-			<div className="flex min-h-dvh bg-background-primary">
+			<div className="flex h-dvh overflow-hidden bg-background-primary">
 				<Sidebar
 					mobileOpen={mobileNavOpen}
 					onNavigate={closeMobileNav}
 				/>
-				<div className="flex min-h-dvh min-w-0 flex-1 flex-col">
+				<div className="flex min-w-0 flex-1 flex-col lg:pl-64">
 					<TopNav
 						menuOpen={mobileNavOpen}
 						onMenuToggle={toggleMobileNav}

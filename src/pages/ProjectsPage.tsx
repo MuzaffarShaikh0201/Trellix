@@ -5,66 +5,28 @@ import {
 	useQueryClient,
 	type QueryKey,
 } from "@tanstack/react-query";
-import type { IconType } from "react-icons";
 import {
-	MdAccountBalanceWallet,
 	MdAdd,
-	MdAddCircleOutline,
-	MdCategory,
-	MdChevronLeft,
-	MdChevronRight,
-	MdFavorite,
-	MdFavoriteBorder,
 	MdFilterList,
-	MdFirstPage,
-	MdFlightTakeoff,
-	MdHomeWork,
-	MdLastPage,
-	MdClose,
-	MdPalette,
-	MdPersonOutline,
-	MdRocketLaunch,
-	MdSchool,
 	MdSort,
-	MdWorkOutline,
 } from "react-icons/md";
 
+import { CreateProjectCard } from "@/components/project/CreateProjectCard";
+import { CreateProjectModal } from "@/components/project/CreateProjectModal";
+import { ProjectCard } from "@/components/project/ProjectCard";
+import { ProjectCardSkeleton } from "@/components/project/ProjectCardSkeleton";
 import Button from "@/components/ui/Button";
-import FormField from "@/components/ui/FormField";
-import { CustomLoader } from "@/components/ui/CustomLoader";
+import { Pagination } from "@/components/ui/Pagination";
 import { createProject, fetchProjects, toggleProjectFavorite } from "@/lib/api/projects";
 import { getRequestErrorMessage } from "@/lib/getRequestErrorMessage";
 import { cn } from "@/lib/utils";
 import { showAlert } from "@/services/alertService";
 import type {
-	Project,
 	ProjectCategory,
 	ProjectSortBy,
 	ProjectSortOrder,
 	ProjectStatus,
 } from "@/types/project";
-
-const categoryIconMap: Record<ProjectCategory, IconType> = {
-	WORK: MdWorkOutline,
-	PERSONAL: MdPersonOutline,
-	LEARNING: MdSchool,
-	HEALTH: MdFavoriteBorder,
-	FINANCE: MdAccountBalanceWallet,
-	SIDE_PROJECT: MdRocketLaunch,
-	CREATIVE: MdPalette,
-	TRAVEL: MdFlightTakeoff,
-	HOME: MdHomeWork,
-	OTHER: MdCategory,
-};
-
-const statusClassMap: Record<ProjectStatus, string> = {
-	ACTIVE: "bg-primary/15 text-primary",
-	PENDING: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-	ON_HOLD: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
-	COMPLETED: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-	CANCELLED: "bg-red-500/15 text-red-600 dark:text-red-400",
-	ARCHIVED: "bg-slate-500/15 text-slate-600 dark:text-slate-400",
-};
 
 const STATUS_FILTER_OPTIONS: { value: ProjectStatus | "ALL"; label: string }[] = [
 	{ value: "ALL", label: "All statuses" },
@@ -120,331 +82,6 @@ const PROJECT_TABS: { value: ProjectTab; label: string }[] = [
 	{ value: "FAVORITES", label: "Favorites" },
 	{ value: "ARCHIVED", label: "Archived" },
 ];
-
-type WorkItemStats = {
-	low: number;
-	medium: number;
-	high: number;
-	completed: number;
-	total: number;
-};
-
-function prettifyToken(value: string) {
-	return value
-		.toLowerCase()
-		.replace(/_/g, " ")
-		.replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function formatDate(value: string | null): string {
-	if (!value) return "Not set";
-	try {
-		return new Intl.DateTimeFormat(undefined, {
-			day: "2-digit",
-			month: "short",
-			year: "numeric",
-		}).format(new Date(value));
-	} catch {
-		return value;
-	}
-}
-
-const PROJECT_TITLE_MAX_CHARS = 56;
-const PROJECT_DESCRIPTION_MAX_CHARS = 220;
-
-function normalizeInlineText(value: string) {
-	return value.replace(/\s+/g, " ").trim();
-}
-
-function truncateText(value: string, maxChars: number) {
-	const normalized = normalizeInlineText(value);
-	if (normalized.length <= maxChars) return normalized;
-	return `${normalized.slice(0, maxChars).trimEnd()}...`;
-}
-
-function truncateProjectTitle(value: string) {
-	return truncateText(value, PROJECT_TITLE_MAX_CHARS);
-}
-
-function truncateDescription(value: string, maxChars = PROJECT_DESCRIPTION_MAX_CHARS) {
-	return truncateText(value, maxChars);
-}
-
-function asNumber(value: unknown): number | null {
-	if (typeof value === "number" && Number.isFinite(value)) return value;
-	if (typeof value === "string" && value.trim() !== "") {
-		const parsed = Number(value);
-		if (Number.isFinite(parsed)) return parsed;
-	}
-	return null;
-}
-
-function readCount(source: Record<string, unknown>, keys: string[]): number {
-	for (const key of keys) {
-		const value = asNumber(source[key]);
-		if (value != null) return Math.max(0, Math.round(value));
-	}
-	return 0;
-}
-
-function parseWorkItemStats(project: Project): WorkItemStats {
-	const raw = project as unknown as Record<string, unknown>;
-	const nestedWorkItems =
-		typeof raw.work_items === "object" && raw.work_items !== null
-			? (raw.work_items as Record<string, unknown>)
-			: null;
-	const nestedTaskCounts =
-		typeof raw.task_counts === "object" && raw.task_counts !== null
-			? (raw.task_counts as Record<string, unknown>)
-			: null;
-
-	const source = { ...raw, ...nestedTaskCounts, ...nestedWorkItems };
-
-	const low = readCount(source, ["low", "low_priority", "low_tasks"]);
-	const medium = readCount(source, ["medium", "medium_priority", "medium_tasks"]);
-	const high = readCount(source, ["high", "high_priority", "high_tasks"]);
-	const byPriorityTotal = low + medium + high;
-	const total = readCount(source, ["total", "total_tasks"]) || byPriorityTotal;
-
-	let completed = readCount(source, ["completed", "completed_tasks", "done_tasks"]);
-	if (completed === 0 && project.status === "COMPLETED" && total > 0) {
-		completed = total;
-	}
-	if (completed > total && total > 0) completed = total;
-
-	return { low, medium, high, completed, total };
-}
-
-function ProjectCard({
-	project,
-	onToggleFavorite,
-	favoritePending,
-}: {
-	project: Project;
-	onToggleFavorite: (projectId: string) => void;
-	favoritePending: boolean;
-}) {
-	const CategoryIcon = categoryIconMap[project.category] ?? MdCategory;
-	const normalizedTitle = normalizeInlineText(project.title);
-	const normalizedDescription = project.description?.trim()
-		? normalizeInlineText(project.description)
-		: null;
-	const workItems = parseWorkItemStats(project);
-	const progress =
-		workItems.total > 0
-			? Math.round((workItems.completed / workItems.total) * 100)
-			: 0;
-	const lowPercent =
-		workItems.total > 0 ? (workItems.low / workItems.total) * 100 : 0;
-	const mediumPercent =
-		workItems.total > 0 ? (workItems.medium / workItems.total) * 100 : 0;
-	const highPercent =
-		workItems.total > 0 ? (workItems.high / workItems.total) * 100 : 0;
-
-	return (
-		<article className="group flex min-h-72 flex-col rounded-xl border border-primary/15 bg-background-secondary p-4 shadow-sm transition-colors hover:border-primary/30">
-			<div className="flex items-start justify-between gap-3">
-				<div className="flex min-w-0 items-center gap-3">
-					<div
-						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-tint"
-						aria-hidden
-					>
-						<CategoryIcon className="h-5 w-5 text-primary" />
-					</div>
-					<div className="min-w-0">
-						<h3
-							className="truncate text-base font-semibold text-text-primary"
-							title={normalizedTitle}
-						>
-							{truncateProjectTitle(project.title)}
-						</h3>
-						<span
-							className={cn(
-								"mt-1 inline-flex rounded-md px-2 py-0.5 text-xs font-medium",
-								statusClassMap[project.status],
-							)}
-						>
-							{prettifyToken(project.status)}
-						</span>
-					</div>
-				</div>
-				<div className="shrink-0 pt-0.5">
-					<button
-						type="button"
-						onClick={() => onToggleFavorite(project.id)}
-						disabled={favoritePending}
-						className={cn(
-							"rounded-md p-1.5 transition-colors hover:bg-primary/10",
-							favoritePending && "cursor-wait opacity-60",
-						)}
-						aria-label={
-							project.is_favorite
-								? "Remove from favorites"
-								: "Add to favorites"
-						}
-					>
-						{project.is_favorite ? (
-							<MdFavorite className="h-5 w-5 text-primary" aria-hidden />
-						) : (
-							<MdFavoriteBorder
-								className="h-5 w-5 text-text-secondary"
-								aria-hidden
-							/>
-						)}
-					</button>
-				</div>
-			</div>
-
-			<p
-				className="mt-3 break-words text-sm text-text-secondary"
-				title={normalizedDescription ?? undefined}
-			>
-				{normalizedDescription
-					? truncateDescription(normalizedDescription)
-					: "No description added yet."}
-			</p>
-
-			<div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-				<div className="rounded-lg border border-primary/10 bg-tint p-3">
-					<p className="text-xs text-text-secondary">Work Items (%)</p>
-					<div className="mt-2 flex items-center gap-2 text-sm text-text-primary">
-						<span className="font-medium">{workItems.low}</span>
-						<span className="text-text-secondary">·</span>
-						<span className="font-medium">{workItems.medium}</span>
-						<span className="text-text-secondary">·</span>
-						<span className="font-medium">{workItems.high}</span>
-					</div>
-					<div className="mt-2 flex h-1.5 overflow-hidden rounded-full bg-background-secondary">
-						<div
-							className="bg-sky-500"
-							style={{ width: `${lowPercent}%` }}
-							aria-hidden
-						/>
-						<div
-							className="bg-orange-500"
-							style={{ width: `${mediumPercent}%` }}
-							aria-hidden
-						/>
-						<div
-							className="bg-red-500"
-							style={{ width: `${highPercent}%` }}
-							aria-hidden
-						/>
-					</div>
-				</div>
-				<div className="rounded-lg border border-primary/10 bg-tint p-3">
-					<p className="text-xs text-text-secondary">Task Progress</p>
-					<div className="mt-2 flex items-center justify-between text-sm">
-						<span className="font-medium text-text-primary">
-							{progress}%
-						</span>
-						<span className="text-text-secondary">
-							{workItems.completed}/{workItems.total}
-						</span>
-					</div>
-					<div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background-secondary">
-						<div
-							className="h-full rounded-full bg-emerald-500 transition-[width]"
-							style={{ width: `${progress}%` }}
-							aria-hidden
-						/>
-					</div>
-				</div>
-			</div>
-
-			<div className="mt-auto pt-4">
-				<div className="grid grid-cols-2 gap-3 rounded-lg border border-primary/10 bg-tint p-3">
-					<div>
-						<p className="text-xs text-text-secondary">Start Date</p>
-						<p className="mt-1 text-sm font-semibold text-text-primary">
-							{formatDate(project.start_date)}
-						</p>
-					</div>
-					<div>
-						<p className="text-xs text-text-secondary">Due Date</p>
-						<p className="mt-1 text-sm font-semibold text-text-primary">
-							{formatDate(project.due_date)}
-						</p>
-					</div>
-				</div>
-			</div>
-		</article>
-	);
-}
-
-function ProjectCardSkeleton() {
-	return (
-		<div className="min-h-72 animate-pulse rounded-xl border border-primary/10 bg-background-secondary p-4">
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-3">
-					<div className="h-10 w-10 rounded-full bg-tint" />
-					<div className="space-y-2">
-						<div className="h-3 w-28 rounded bg-tint" />
-						<div className="h-3 w-20 rounded bg-tint" />
-					</div>
-				</div>
-				<div className="h-5 w-5 rounded bg-tint" />
-			</div>
-			<div className="mt-4 flex gap-2">
-				<div className="h-6 w-20 rounded bg-tint" />
-				<div className="h-6 w-24 rounded bg-tint" />
-			</div>
-			<div className="mt-4 space-y-2">
-				<div className="h-3 w-full rounded bg-tint" />
-				<div className="h-3 w-11/12 rounded bg-tint" />
-				<div className="h-3 w-9/12 rounded bg-tint" />
-			</div>
-			<div className="mt-4 rounded-lg border border-primary/10 bg-tint p-3">
-				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-					<div className="space-y-2">
-						<div className="h-3 w-20 rounded bg-background-secondary" />
-						<div className="h-3 w-24 rounded bg-background-secondary" />
-						<div className="h-1.5 w-full rounded bg-background-secondary" />
-					</div>
-					<div className="space-y-2">
-						<div className="h-3 w-20 rounded bg-background-secondary" />
-						<div className="h-3 w-24 rounded bg-background-secondary" />
-						<div className="h-1.5 w-full rounded bg-background-secondary" />
-					</div>
-				</div>
-			</div>
-			<div className="mt-4 rounded-lg border border-primary/10 bg-tint p-3">
-				<div className="grid grid-cols-2 gap-3">
-					<div className="space-y-2">
-						<div className="h-3 w-16 rounded bg-background-secondary" />
-						<div className="h-3 w-20 rounded bg-background-secondary" />
-					</div>
-					<div className="space-y-2">
-						<div className="h-3 w-16 rounded bg-background-secondary" />
-						<div className="h-3 w-20 rounded bg-background-secondary" />
-					</div>
-				</div>
-			</div>
-		</div>
-	);
-}
-
-function CreateProjectCard({ onCreate }: { onCreate: () => void }) {
-	return (
-		<article className="flex min-h-72 flex-col items-center justify-center rounded-xl border border-dashed border-primary/35 bg-background-secondary p-5 text-center shadow-sm">
-			<div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-tint">
-				<MdAddCircleOutline className="h-10 w-10 text-primary" aria-hidden />
-			</div>
-			<h3 className="mt-4 text-lg font-semibold text-text-primary">
-				Start a new project
-			</h3>
-			<p className="mt-2 text-sm text-text-secondary">
-				Create and organize your next idea in Trellix.
-			</p>
-			<div className="mt-5 w-full max-w-[11rem]">
-				<Button
-					title="Create Project"
-					onClick={onCreate}
-				/>
-			</div>
-		</article>
-	);
-}
 
 export function ProjectsPage() {
 	const queryClient = useQueryClient();
@@ -933,7 +570,7 @@ export function ProjectsPage() {
 				</div>
 			) : null}
 
-			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+			<div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
 				{isPending
 					? Array.from({ length: Math.min(6, rowsPerPage) }, (_, idx) => (
 							<ProjectCardSkeleton key={`project-skeleton-${idx}`} />
@@ -968,223 +605,42 @@ export function ProjectsPage() {
 			) : null}
 
 			{!isError && totalItems > 0 ? (
-				<footer className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-primary/10 bg-background-secondary p-3 text-sm text-text-secondary">
-					<div className="flex items-center gap-2">
-						<label htmlFor="projects-rows-per-page">Rows per page</label>
-						<select
-							id="projects-rows-per-page"
-							value={rowsPerPage}
-							onChange={(e) => {
-								setRowsPerPage(Number(e.target.value));
-								setPage(1);
-							}}
-							className={cn(
-								"h-8 cursor-pointer rounded-md border border-primary/15 bg-background-secondary px-2 text-sm text-text-primary",
-								"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
-							)}
-						>
-							<option value={6}>6</option>
-							<option value={12}>12</option>
-							<option value={24}>24</option>
-							<option value={36}>36</option>
-						</select>
-					</div>
-
-					<div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
-						<p className="min-w-24 text-right tabular-nums">
-							{startItem}-{endItem} of {totalItems}
-						</p>
-
-						<div className="flex items-center gap-1">
-							<button
-								type="button"
-								onClick={() => setPage(1)}
-								disabled={!canGoPrev}
-								className={cn(
-									"rounded-md p-1.5 text-text-secondary transition-colors hover:bg-primary/10 hover:text-text-primary",
-									!canGoPrev && "cursor-not-allowed opacity-40",
-								)}
-								aria-label="First page"
-							>
-								<MdFirstPage className="h-5 w-5" aria-hidden />
-							</button>
-							<button
-								type="button"
-								onClick={() => setPage((p) => Math.max(1, p - 1))}
-								disabled={!canGoPrev}
-								className={cn(
-									"rounded-md p-1.5 text-text-secondary transition-colors hover:bg-primary/10 hover:text-text-primary",
-									!canGoPrev && "cursor-not-allowed opacity-40",
-								)}
-								aria-label="Previous page"
-							>
-								<MdChevronLeft className="h-5 w-5" aria-hidden />
-							</button>
-							<button
-								type="button"
-								onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-								disabled={!canGoNext}
-								className={cn(
-									"rounded-md p-1.5 text-text-secondary transition-colors hover:bg-primary/10 hover:text-text-primary",
-									!canGoNext && "cursor-not-allowed opacity-40",
-								)}
-								aria-label="Next page"
-							>
-								<MdChevronRight className="h-5 w-5" aria-hidden />
-							</button>
-							<button
-								type="button"
-								onClick={() => setPage(totalPages)}
-								disabled={!canGoNext}
-								className={cn(
-									"rounded-md p-1.5 text-text-secondary transition-colors hover:bg-primary/10 hover:text-text-primary",
-									!canGoNext && "cursor-not-allowed opacity-40",
-								)}
-								aria-label="Last page"
-							>
-								<MdLastPage className="h-5 w-5" aria-hidden />
-							</button>
-						</div>
-					</div>
-				</footer>
+				<Pagination
+					rowsPerPage={rowsPerPage}
+					onRowsPerPageChange={(next) => {
+						setRowsPerPage(next);
+						setPage(1);
+					}}
+					startItem={startItem}
+					endItem={endItem}
+					totalItems={totalItems}
+					canGoPrev={canGoPrev}
+					canGoNext={canGoNext}
+					onFirstPage={() => setPage(1)}
+					onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
+					onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
+					onLastPage={() => setPage(totalPages)}
+					pageSizeSelectId="projects-rows-per-page"
+				/>
 			) : null}
 
-			{createModalOpen ? (
-				<div
-					className="fixed inset-0 z-[70] bg-black/45 backdrop-blur-[1px]"
-					role="presentation"
-					onClick={() => closeCreateModal()}
-				>
-					<div
-						role="dialog"
-						aria-modal="true"
-						aria-label="Create project"
-						onClick={(e) => e.stopPropagation()}
-						className={cn(
-							"absolute left-1/2 top-1/2 w-[calc(100vw-2rem)] max-w-[38rem] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-primary/10 bg-background-secondary p-5 shadow-lg sm:p-6",
-						)}
-					>
-						<div className="flex items-start justify-between gap-4">
-							<div>
-								<p className="text-xs font-medium uppercase tracking-wide text-text-secondary">
-									Create project
-								</p>
-								<h2 className="mt-2 text-xl font-bold text-text-primary">
-									New project
-								</h2>
-								<p className="mt-1 text-sm text-text-secondary">
-									Add details to organize your work.
-								</p>
-							</div>
-							<button
-								type="button"
-								onClick={() => closeCreateModal()}
-								className="flex h-9 w-9 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-tint hover:text-text-primary"
-								aria-label="Close create project modal"
-							>
-								<MdClose className="h-5 w-5" aria-hidden />
-							</button>
-						</div>
-
-						<form onSubmit={handleCreateSubmit} className="mt-5 space-y-4">
-							<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-								<div className="sm:col-span-2">
-									<FormField
-										title="Title"
-										placeholder="e.g. Build the Trellix dashboard"
-										type="text"
-										value={createTitle}
-										handleChange={(e) => setCreateTitle(e.target.value)}
-										autoComplete="off"
-									/>
-								</div>
-
-								<div className="sm:col-span-2">
-									<FormField
-										title="Description"
-										placeholder="Short description (optional)"
-										type="text"
-										value={createDescription}
-										handleChange={(e) =>
-											setCreateDescription(e.target.value)
-										}
-										autoComplete="off"
-									/>
-								</div>
-
-								<div>
-									<label className="text-xs font-medium uppercase tracking-wide text-text-secondary">
-										Category
-									</label>
-									<select
-										value={createCategory}
-										onChange={(e) =>
-											setCreateCategory(e.target.value as ProjectCategory)
-										}
-										className={cn(
-											"mt-1.5 h-9 w-full cursor-pointer rounded-lg border border-primary/15 bg-tint px-3 text-sm text-text-primary",
-											"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
-										)}
-										aria-label="Project category"
-									>
-										{CREATE_CATEGORY_OPTIONS.map((option) => (
-											<option key={option.value} value={option.value}>
-												{option.label}
-											</option>
-										))}
-									</select>
-								</div>
-
-								<div>
-									<FormField
-										title="Start date"
-										placeholder=""
-										type="date"
-										value={createStartDate}
-										handleChange={(e) => setCreateStartDate(e.target.value)}
-									/>
-								</div>
-
-								<div>
-									<FormField
-										title="Due date"
-										placeholder=""
-										type="date"
-										value={createDueDate}
-										handleChange={(e) => setCreateDueDate(e.target.value)}
-									/>
-								</div>
-							</div>
-
-							<div className="flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:justify-end">
-								<button
-									type="button"
-									onClick={() => closeCreateModal()}
-									className="rounded-lg bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
-								>
-									Cancel
-								</button>
-								<div className="w-full sm:w-40">
-									<Button
-										type="submit"
-										title="Create Project"
-										disabled={createSubmitting}
-										loading={createSubmitting}
-										loader={
-											<CustomLoader
-												size={24}
-												color="#ffffff"
-												containerStyle={{ width: 24, height: 24 }}
-												aria-label="Creating project"
-											/>
-										}
-									/>
-								</div>
-							</div>
-						</form>
-					</div>
-				</div>
-			) : null}
+			<CreateProjectModal
+				open={createModalOpen}
+				onClose={closeCreateModal}
+				onSubmit={handleCreateSubmit}
+				title={createTitle}
+				description={createDescription}
+				category={createCategory}
+				startDate={createStartDate}
+				dueDate={createDueDate}
+				onTitleChange={(e) => setCreateTitle(e.target.value)}
+				onDescriptionChange={(e) => setCreateDescription(e.target.value)}
+				onCategoryChange={(e) => setCreateCategory(e.target.value as ProjectCategory)}
+				onStartDateChange={(e) => setCreateStartDate(e.target.value)}
+				onDueDateChange={(e) => setCreateDueDate(e.target.value)}
+				categoryOptions={CREATE_CATEGORY_OPTIONS}
+				submitting={createSubmitting}
+			/>
 		</section>
 	);
 }
