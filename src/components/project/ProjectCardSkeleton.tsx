@@ -10,17 +10,19 @@ export function ProjectCardSkeleton() {
 			)}
 		>
 			<div className="flex flex-1 flex-col p-4 pb-3">
-				<div className="flex items-start justify-between">
-					<div className="h-11 w-11 rounded-full bg-tint" />
-					<div className="flex gap-1">
-						<div className="h-7 w-7 rounded-md bg-tint" />
-						<div className="h-7 w-7 rounded-md bg-tint" />
+				<div className="flex items-start justify-between gap-2">
+					<div className="min-w-0 flex-1 space-y-2">
+						<div className="h-5 w-[min(100%,10rem)] rounded bg-tint" />
+						<div className="h-5 w-16 rounded border border-tint bg-tint" />
 					</div>
+					<div className="h-7 w-7 shrink-0 rounded-md bg-tint" />
 				</div>
-				<div className="mt-3 h-5 w-[min(100%,10rem)] rounded bg-tint" />
-				<div className="mt-2 h-4 w-24 rounded bg-tint" />
-				<div className="mt-2 h-5 w-16 rounded border border-tint bg-tint" />
-				<div className="mt-4 grid flex-1 grid-cols-2 gap-3">
+				<div className="mt-4 inline-flex h-6 w-fit max-w-[70%] items-center gap-1.5 rounded-full bg-slate-800/60 px-2.5 dark:bg-[#252b3a]/80">
+					<div className="size-3.5 shrink-0 rounded-full bg-tint/40" />
+					<div className="h-3 w-20 rounded-full bg-tint/40" />
+				</div>
+				<div className="min-h-2 flex-1" aria-hidden />
+				<div className="grid shrink-0 grid-cols-2 gap-3">
 					<div className="space-y-2">
 						<div className="h-3 w-20 rounded bg-tint" />
 						<div className="h-4 w-16 rounded bg-tint" />

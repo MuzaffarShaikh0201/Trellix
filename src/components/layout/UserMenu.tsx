@@ -3,8 +3,10 @@ import { NavLink, useNavigate } from "react-router";
 import {
 	MdBrightnessAuto,
 	MdCheck,
+	MdContactMail,
 	MdDarkMode,
 	MdExpandMore,
+	MdGavel,
 	MdLightMode,
 	MdLogout,
 	MdPersonOutline,
@@ -268,6 +270,28 @@ export function UserMenu() {
 						>
 							<MdSettings className="h-5 w-5 shrink-0 text-text-secondary" />
 							Settings
+						</NavLink>
+						<NavLink
+							to="/contact"
+							role="menuitem"
+							onClick={() => setOpen(false)}
+							className={({ isActive }) =>
+								cn(menuLinkClass, isActive && "bg-primary/10")
+							}
+						>
+							<MdContactMail className="h-5 w-5 shrink-0 text-text-secondary" />
+							Contact us
+						</NavLink>
+						<NavLink
+							to="/legal"
+							role="menuitem"
+							onClick={() => setOpen(false)}
+							className={({ isActive }) =>
+								cn(menuLinkClass, isActive && "bg-primary/10")
+							}
+						>
+							<MdGavel className="h-5 w-5 shrink-0 text-text-secondary" />
+							Terms of use &amp; Privacy policy
 						</NavLink>
 					</div>
 

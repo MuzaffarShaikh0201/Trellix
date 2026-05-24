@@ -33,6 +33,38 @@
 	--color-text-primary: var(--text-primary);
 	--color-text-secondary: var(--text-secondary);
 	--color-tint: var(--color-tint);
+
+	/* Type scale: ~90% of default; ratios between steps unchanged. */
+	--text-xs: 0.675rem;
+	--text-xs--line-height: 0.9rem;
+	--text-sm: 0.7875rem;
+	--text-sm--line-height: 1.125rem;
+	--text-base: 0.9rem;
+	--text-base--line-height: 1.35rem;
+	--text-lg: 1.0125rem;
+	--text-lg--line-height: 1.575rem;
+	--text-xl: 1.125rem;
+	--text-xl--line-height: 1.575rem;
+	--text-2xl: 1.35rem;
+	--text-2xl--line-height: 1.8rem;
+	--text-3xl: 1.6875rem;
+	--text-3xl--line-height: 2.025rem;
+	--text-4xl: 2.025rem;
+	--text-4xl--line-height: 2.25rem;
+	--text-5xl: 2.7rem;
+	--text-5xl--line-height: 1;
+	--text-6xl: 3.375rem;
+	--text-6xl--line-height: 1;
+	--text-7xl: 4.05rem;
+	--text-7xl--line-height: 1;
+	--text-8xl: 5.4rem;
+	--text-8xl--line-height: 1;
+	--text-9xl: 7.2rem;
+	--text-9xl--line-height: 1;
+
+	/* Header app title — keeps pre-scale lg size. */
+	--text-app-title: 1.125rem;
+	--text-app-title--line-height: 1.75rem;
 }
 
 * {
@@ -43,6 +75,8 @@
 body {
 	background-color: var(--color-background-primary);
 	color: var(--text-primary);
+	font-size: var(--text-base);
+	line-height: var(--text-base--line-height);
 }
 
 .custom-scrollbar {

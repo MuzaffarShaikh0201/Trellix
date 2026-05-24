@@ -5,13 +5,13 @@ const LG = 1024;
 const XL = 1280;
 
 function columnsForWidth(width: number): number {
-	if (width >= XL) return 4;
-	if (width >= LG) return 3;
+	if (width >= XL) return 5;
+	if (width >= LG) return 4;
 	if (width >= SM) return 2;
 	return 1;
 }
 
-/** Matches ProjectsPage grid: 1 → sm:2 → lg:3 → xl:4 columns. */
+/** Matches ProjectsPage grid: 1 → sm:2 → lg:4 → xl:5 columns. */
 export function useProjectGridColumns(): number {
 	const [cols, setCols] = useState(() =>
 		typeof window !== "undefined" ? columnsForWidth(window.innerWidth) : 1,

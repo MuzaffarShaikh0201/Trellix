@@ -1,6 +1,6 @@
-import { MdFavorite, MdFavoriteBorder, MdOpenInNew } from "react-icons/md";
+import { MdFavorite, MdFavoriteBorder } from "react-icons/md";
 
-import { CircularProgressRing } from "@/components/project/CircularProgressRing";
+import { ProjectRepoBadge } from "@/components/project/ProjectRepoBadge";
 import { projectCardShellClass } from "@/components/project/project-card-shell";
 import { cn } from "@/lib/utils";
 import type { Project, ProjectStatus } from "@/types/project";
@@ -149,7 +149,29 @@ export function ProjectCard({
 		<article className={cn("group", projectCardShellClass)}>
 			<div className="flex min-h-0 flex-1 flex-col p-4 pb-3">
 				<div className="flex items-start justify-between gap-2">
-					<CircularProgressRing value={progress} />
+					<div className="min-w-0 flex-1">
+						<h3
+							className="line-clamp-2 text-base font-semibold leading-snug text-text-primary"
+							title={normalizedTitle}
+						>
+							{truncateProjectTitle(project.title)}
+						</h3>
+						<div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+							<span
+								className={cn(
+									"inline-flex rounded border px-2 py-0.5 text-[11px] font-medium",
+									statusClassMap[project.status],
+								)}
+							>
+								{prettifyToken(project.status)}
+							</span>
+							{project.is_archived ? (
+								<span className="inline-flex rounded border border-slate-500/40 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+									Archived
+								</span>
+							) : null}
+						</div>
+					</div>
 					<div className="flex shrink-0 items-center gap-0.5">
 						<button
 							type="button"
@@ -171,58 +193,17 @@ export function ProjectCard({
 								<MdFavoriteBorder className="h-[18px] w-[18px]" aria-hidden />
 							)}
 						</button>
-						{project.repo_url ? (
-							<a
-								href={project.repo_url}
-								target="_blank"
-								rel="noopener noreferrer"
-								className="rounded-md p-1 text-text-secondary transition-colors hover:text-primary"
-								aria-label="Open repository"
-							>
-								<MdOpenInNew className="h-[18px] w-[18px]" aria-hidden />
-							</a>
-						) : null}
 					</div>
 				</div>
 
-				<h3
-					className="mt-3 line-clamp-2 text-base font-semibold leading-snug text-text-primary"
-					title={normalizedTitle}
-				>
-					{truncateProjectTitle(project.title)}
-				</h3>
+				<ProjectRepoBadge
+					repoUrl={project.repo_url}
+					displayName={repoName}
+				/>
 
-				{project.repo_url && repoName ? (
-					<a
-						href={project.repo_url}
-						target="_blank"
-						rel="noopener noreferrer"
-						className="mt-0.5 block truncate text-sm text-text-secondary transition-colors hover:text-primary hover:underline"
-						title={project.repo_url}
-					>
-						{repoName}
-					</a>
-				) : (
-					<p className="mt-0.5 text-sm text-text-secondary">No repository linked</p>
-				)}
+				<div className="min-h-2 flex-1" aria-hidden />
 
-				<div className="mt-2 flex flex-wrap items-center gap-1.5">
-					<span
-						className={cn(
-							"inline-flex rounded border px-2 py-0.5 text-[11px] font-medium",
-							statusClassMap[project.status],
-						)}
-					>
-						{prettifyToken(project.status)}
-					</span>
-					{project.is_archived ? (
-						<span className="inline-flex rounded border border-slate-500/40 px-2 py-0.5 text-[11px] font-medium text-slate-500">
-							Archived
-						</span>
-					) : null}
-				</div>
-
-				<div className="mt-4 grid flex-1 grid-cols-2 gap-3">
+				<div className="grid shrink-0 grid-cols-2 gap-3">
 					<div className="min-w-0">
 						<p className="text-[11px] text-text-secondary">Work Items (%)</p>
 						<div className="mt-1 flex items-center gap-1 text-sm font-medium text-text-primary">
@@ -271,7 +252,7 @@ export function ProjectCard({
 
 			<footer
 				className={cn(
-					"mt-auto grid shrink-0 grid-cols-2 gap-4 px-4 py-3",
+					"mt-0.5 grid shrink-0 grid-cols-2 gap-4 px-4 py-3",
 					"bg-transparent transition-colors",
 					"max-sm:bg-tint sm:group-hover:bg-tint",
 				)}

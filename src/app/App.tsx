@@ -32,20 +32,12 @@ function App() {
 					element={<ProjectsPage />}
 				/>
 				<Route
-					path="tasks"
-					element={<SectionPlaceholderPage title="Tasks" />}
-				/>
-				<Route
 					path="calendar"
 					element={<SectionPlaceholderPage title="Calendar" />}
 				/>
 				<Route
 					path="notes"
 					element={<SectionPlaceholderPage title="Notes" />}
-				/>
-				<Route
-					path="habits"
-					element={<SectionPlaceholderPage title="Habits" />}
 				/>
 				<Route
 					path="settings"
