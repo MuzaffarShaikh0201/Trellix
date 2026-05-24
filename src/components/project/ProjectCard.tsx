@@ -1,50 +1,30 @@
-import type { IconType } from "react-icons";
-import {
-	MdAccountBalanceWallet,
-	MdCategory,
-	MdFavorite,
-	MdFavoriteBorder,
-	MdFlightTakeoff,
-	MdHomeWork,
-	MdPalette,
-	MdPersonOutline,
-	MdRocketLaunch,
-	MdSchool,
-	MdWorkOutline,
-} from "react-icons/md";
+import { MdFavorite, MdFavoriteBorder, MdOpenInNew } from "react-icons/md";
 
+import { CircularProgressRing } from "@/components/project/CircularProgressRing";
+import { projectCardShellClass } from "@/components/project/project-card-shell";
 import { cn } from "@/lib/utils";
-import type { Project, ProjectCategory, ProjectStatus } from "@/types/project";
-
-const categoryIconMap: Record<ProjectCategory, IconType> = {
-	WORK: MdWorkOutline,
-	PERSONAL: MdPersonOutline,
-	LEARNING: MdSchool,
-	HEALTH: MdFavoriteBorder,
-	FINANCE: MdAccountBalanceWallet,
-	SIDE_PROJECT: MdRocketLaunch,
-	CREATIVE: MdPalette,
-	TRAVEL: MdFlightTakeoff,
-	HOME: MdHomeWork,
-	OTHER: MdCategory,
-};
+import type { Project, ProjectStatus } from "@/types/project";
 
 const statusClassMap: Record<ProjectStatus, string> = {
-	ACTIVE: "bg-primary/15 text-primary",
-	PENDING: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-	ON_HOLD: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
-	COMPLETED: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-	CANCELLED: "bg-red-500/15 text-red-600 dark:text-red-400",
-	ARCHIVED: "bg-slate-500/15 text-slate-600 dark:text-slate-400",
+	PLANNING: "border-violet-500/50 text-violet-500",
+	IN_PROGRESS: "border-primary/50 text-primary",
+	ON_HOLD: "border-violet-400/50 text-violet-400",
+	COMPLETED: "border-emerald-500/50 text-emerald-500",
+	ABANDONED: "border-red-500/50 text-red-500",
 };
 
-type WorkItemStats = {
-	low: number;
-	medium: number;
-	high: number;
-	completed: number;
-	total: number;
-};
+function formatDate(value: string | null): string {
+	if (!value) return "—";
+	try {
+		const d = new Date(value);
+		const day = String(d.getDate()).padStart(2, "0");
+		const month = d.toLocaleString(undefined, { month: "short" });
+		const year = d.getFullYear();
+		return `${day}/${month}/${year}`;
+	} catch {
+		return value;
+	}
+}
 
 function prettifyToken(value: string) {
 	return value
@@ -53,21 +33,7 @@ function prettifyToken(value: string) {
 		.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function formatDate(value: string | null): string {
-	if (!value) return "Not set";
-	try {
-		return new Intl.DateTimeFormat(undefined, {
-			day: "2-digit",
-			month: "short",
-			year: "numeric",
-		}).format(new Date(value));
-	} catch {
-		return value;
-	}
-}
-
-const PROJECT_TITLE_MAX_CHARS = 56;
-const PROJECT_DESCRIPTION_MAX_CHARS = 220;
+const PROJECT_TITLE_MAX_CHARS = 48;
 
 function normalizeInlineText(value: string) {
 	return value.replace(/\s+/g, " ").trim();
@@ -83,9 +49,33 @@ function truncateProjectTitle(value: string) {
 	return truncateText(value, PROJECT_TITLE_MAX_CHARS);
 }
 
-function truncateDescription(value: string, maxChars = PROJECT_DESCRIPTION_MAX_CHARS) {
-	return truncateText(value, maxChars);
+function getRepoDisplayName(url: string | null): string | null {
+	if (!url?.trim()) return null;
+	try {
+		const parsed = new URL(url.trim());
+		const parts = parsed.pathname.split("/").filter(Boolean);
+		if (parts.length >= 2) {
+			return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
+		}
+		if (parts.length === 1) return parts[0]!;
+		return parsed.hostname.replace(/^www\./, "");
+	} catch {
+		const trimmed = url.trim();
+		const slash = trimmed.lastIndexOf("/");
+		if (slash >= 0 && slash < trimmed.length - 1) {
+			return trimmed.slice(slash + 1);
+		}
+		return trimmed;
+	}
 }
+
+type WorkItemStats = {
+	low: number;
+	medium: number;
+	high: number;
+	completed: number;
+	total: number;
+};
 
 function asNumber(value: unknown): number | null {
 	if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -141,11 +131,8 @@ export function ProjectCard({
 	onToggleFavorite: (projectId: string) => void;
 	favoritePending: boolean;
 }) {
-	const CategoryIcon = categoryIconMap[project.category] ?? MdCategory;
 	const normalizedTitle = normalizeInlineText(project.title);
-	const normalizedDescription = project.description?.trim()
-		? normalizeInlineText(project.description)
-		: null;
+	const repoName = getRepoDisplayName(project.repo_url);
 	const workItems = parseWorkItemStats(project);
 	const progress =
 		workItems.total > 0
@@ -159,132 +146,149 @@ export function ProjectCard({
 		workItems.total > 0 ? (workItems.high / workItems.total) * 100 : 0;
 
 	return (
-		<article className="group flex h-[19rem] flex-col rounded-xl border border-primary/15 bg-background-secondary p-4 shadow-sm transition-colors hover:border-primary/30">
-			<div className="flex items-start justify-between gap-3">
-				<div className="flex min-w-0 items-center gap-2">
-					<div
-						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-tint"
-						aria-hidden
-					>
-						<CategoryIcon className="h-5 w-5 text-primary" />
-					</div>
-					<div className="min-w-0">
-						<h3
-							className="h-6 overflow-hidden break-words text-base font-semibold leading-6 text-text-primary"
-							title={normalizedTitle}
-						>
-							{truncateProjectTitle(project.title)}
-						</h3>
-						<span
+		<article className={cn("group", projectCardShellClass)}>
+			<div className="flex min-h-0 flex-1 flex-col p-4 pb-3">
+				<div className="flex items-start justify-between gap-2">
+					<CircularProgressRing value={progress} />
+					<div className="flex shrink-0 items-center gap-0.5">
+						<button
+							type="button"
+							onClick={() => onToggleFavorite(project.id)}
+							disabled={favoritePending}
 							className={cn(
-								"mt-1 inline-flex rounded-md px-2 py-0.5 text-xs font-medium",
-								statusClassMap[project.status],
+								"rounded-md p-1 text-text-secondary transition-colors hover:text-primary",
+								favoritePending && "cursor-wait opacity-60",
 							)}
+							aria-label={
+								project.is_favorite
+									? "Remove from favorites"
+									: "Add to favorites"
+							}
 						>
-							{prettifyToken(project.status)}
-						</span>
+							{project.is_favorite ? (
+								<MdFavorite className="h-[18px] w-[18px] text-primary" aria-hidden />
+							) : (
+								<MdFavoriteBorder className="h-[18px] w-[18px]" aria-hidden />
+							)}
+						</button>
+						{project.repo_url ? (
+							<a
+								href={project.repo_url}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="rounded-md p-1 text-text-secondary transition-colors hover:text-primary"
+								aria-label="Open repository"
+							>
+								<MdOpenInNew className="h-[18px] w-[18px]" aria-hidden />
+							</a>
+						) : null}
 					</div>
 				</div>
-				<div className="shrink-0 pt-0.5">
-					<button
-						type="button"
-						onClick={() => onToggleFavorite(project.id)}
-						disabled={favoritePending}
-						className={cn(
-							"rounded-md p-1.5 transition-colors hover:bg-primary/10",
-							favoritePending && "cursor-wait opacity-60",
-						)}
-						aria-label={
-							project.is_favorite
-								? "Remove from favorites"
-								: "Add to favorites"
-						}
+
+				<h3
+					className="mt-3 line-clamp-2 text-base font-semibold leading-snug text-text-primary"
+					title={normalizedTitle}
+				>
+					{truncateProjectTitle(project.title)}
+				</h3>
+
+				{project.repo_url && repoName ? (
+					<a
+						href={project.repo_url}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="mt-0.5 block truncate text-sm text-text-secondary transition-colors hover:text-primary hover:underline"
+						title={project.repo_url}
 					>
-						{project.is_favorite ? (
-							<MdFavorite className="h-5 w-5 text-primary" aria-hidden />
-						) : (
-							<MdFavoriteBorder
-								className="h-5 w-5 text-text-secondary"
+						{repoName}
+					</a>
+				) : (
+					<p className="mt-0.5 text-sm text-text-secondary">No repository linked</p>
+				)}
+
+				<div className="mt-2 flex flex-wrap items-center gap-1.5">
+					<span
+						className={cn(
+							"inline-flex rounded border px-2 py-0.5 text-[11px] font-medium",
+							statusClassMap[project.status],
+						)}
+					>
+						{prettifyToken(project.status)}
+					</span>
+					{project.is_archived ? (
+						<span className="inline-flex rounded border border-slate-500/40 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+							Archived
+						</span>
+					) : null}
+				</div>
+
+				<div className="mt-4 grid flex-1 grid-cols-2 gap-3">
+					<div className="min-w-0">
+						<p className="text-[11px] text-text-secondary">Work Items (%)</p>
+						<div className="mt-1 flex items-center gap-1 text-sm font-medium text-text-primary">
+							<span>{workItems.low}</span>
+							<span className="text-text-secondary">·</span>
+							<span>{workItems.medium}</span>
+							<span className="text-text-secondary">·</span>
+							<span>{workItems.high}</span>
+						</div>
+						<div className="mt-1.5 flex h-1 overflow-hidden rounded-full bg-tint">
+							<div
+								className="bg-sky-500"
+								style={{ width: `${lowPercent}%` }}
 								aria-hidden
 							/>
-						)}
-					</button>
+							<div
+								className="bg-cyan-400"
+								style={{ width: `${mediumPercent}%` }}
+								aria-hidden
+							/>
+							<div
+								className="bg-red-500"
+								style={{ width: `${highPercent}%` }}
+								aria-hidden
+							/>
+						</div>
+					</div>
+					<div className="min-w-0">
+						<p className="text-[11px] text-text-secondary">Tasks Completed</p>
+						<div className="mt-1 flex items-center justify-between text-sm font-medium text-text-primary">
+							<span>{progress}%</span>
+							<span className="text-xs text-text-secondary">
+								{workItems.completed}/{workItems.total}
+							</span>
+						</div>
+						<div className="mt-1.5 h-1 overflow-hidden rounded-full bg-tint">
+							<div
+								className="h-full rounded-full bg-emerald-500"
+								style={{ width: `${progress}%` }}
+								aria-hidden
+							/>
+						</div>
+					</div>
 				</div>
 			</div>
 
-			<p
-				className="mt-3 truncate text-sm leading-5 text-text-secondary"
-				title={normalizedDescription ?? undefined}
+			<footer
+				className={cn(
+					"mt-auto grid shrink-0 grid-cols-2 gap-4 px-4 py-3",
+					"bg-transparent transition-colors",
+					"group-hover:bg-tint",
+				)}
 			>
-				{normalizedDescription
-					? truncateDescription(normalizedDescription)
-					: "No description added yet."}
-			</p>
-
-			<div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-				<div className="rounded-lg border border-primary/10 bg-tint p-3">
-					<p className="text-xs text-text-secondary">Work Items (%)</p>
-					<div className="mt-2 flex items-center gap-2 text-sm text-text-primary">
-						<span className="font-medium">{workItems.low}</span>
-						<span className="text-text-secondary">·</span>
-						<span className="font-medium">{workItems.medium}</span>
-						<span className="text-text-secondary">·</span>
-						<span className="font-medium">{workItems.high}</span>
-					</div>
-					<div className="mt-2 flex h-1.5 overflow-hidden rounded-full bg-background-secondary">
-						<div
-							className="bg-sky-500"
-							style={{ width: `${lowPercent}%` }}
-							aria-hidden
-						/>
-						<div
-							className="bg-orange-500"
-							style={{ width: `${mediumPercent}%` }}
-							aria-hidden
-						/>
-						<div
-							className="bg-red-500"
-							style={{ width: `${highPercent}%` }}
-							aria-hidden
-						/>
-					</div>
+				<div>
+					<p className="text-xs text-text-secondary">Start Date:</p>
+					<p className="mt-0.5 text-sm font-semibold text-text-primary">
+						{formatDate(project.start_date)}
+					</p>
 				</div>
-				<div className="rounded-lg border border-primary/10 bg-tint p-3">
-					<p className="text-xs text-text-secondary">Task Progress</p>
-					<div className="mt-2 flex items-center justify-between text-sm">
-						<span className="font-medium text-text-primary">
-							{progress}%
-						</span>
-						<span className="text-text-secondary">
-							{workItems.completed}/{workItems.total}
-						</span>
-					</div>
-					<div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background-secondary">
-						<div
-							className="h-full rounded-full bg-emerald-500 transition-[width]"
-							style={{ width: `${progress}%` }}
-							aria-hidden
-						/>
-					</div>
+				<div>
+					<p className="text-xs text-text-secondary">End Date:</p>
+					<p className="mt-0.5 text-sm font-semibold text-text-primary">
+						{formatDate(project.end_date)}
+					</p>
 				</div>
-			</div>
-
-			<div className="mt-4">
-				<div className="grid grid-cols-2 gap-3 rounded-lg border border-primary/10 bg-tint p-3">
-					<div>
-						<p className="text-xs text-text-secondary">Start Date</p>
-						<p className="mt-1 text-sm font-semibold text-text-primary">
-							{formatDate(project.start_date)}
-						</p>
-					</div>
-					<div>
-						<p className="text-xs text-text-secondary">Due Date</p>
-						<p className="mt-1 text-sm font-semibold text-text-primary">
-							{formatDate(project.due_date)}
-						</p>
-					</div>
-				</div>
-			</div>
+			</footer>
 		</article>
 	);
 }

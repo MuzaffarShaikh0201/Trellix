@@ -1,24 +1,17 @@
 export type ProjectStatus =
-	| "ACTIVE"
-	| "PENDING"
+	| "PLANNING"
+	| "IN_PROGRESS"
 	| "ON_HOLD"
 	| "COMPLETED"
-	| "CANCELLED"
-	| "ARCHIVED";
+	| "ABANDONED";
 
-export type ProjectCategory =
-	| "WORK"
-	| "PERSONAL"
-	| "LEARNING"
-	| "HEALTH"
-	| "FINANCE"
-	| "SIDE_PROJECT"
-	| "CREATIVE"
-	| "TRAVEL"
-	| "HOME"
-	| "OTHER";
+export type ProjectSortBy =
+	| "title"
+	| "created_at"
+	| "updated_at"
+	| "start_date"
+	| "end_date";
 
-export type ProjectSortBy = "title" | "created_at" | "updated_at";
 export type ProjectSortOrder = "asc" | "desc";
 
 export type Project = {
@@ -27,20 +20,20 @@ export type Project = {
 	title: string;
 	description: string | null;
 	status: ProjectStatus;
-	category: ProjectCategory;
+	repo_url: string | null;
 	start_date: string | null;
-	due_date: string | null;
-	completed_at: string | null;
+	end_date: string | null;
 	color: string | null;
 	is_favorite: boolean;
+	is_archived: boolean;
 	created_at: string;
 	updated_at: string;
 };
 
 export type GetProjectsParams = {
 	status?: ProjectStatus;
-	category?: ProjectCategory;
 	is_favorite?: boolean;
+	is_archived?: boolean;
 	page?: number;
 	limit?: number;
 	sort_by?: ProjectSortBy;
@@ -58,12 +51,23 @@ export type GetProjectsResponse = {
 export type CreateProjectParams = {
 	title: string;
 	description?: string | null;
-	category: ProjectCategory;
-	/**
-	 * If the backend supports defaults, this can be omitted.
-	 * The create UI doesn't expose it, so we send an initial value.
-	 */
-	status?: ProjectStatus;
-	start_date: string;
-	due_date?: string | null;
+	start_date?: string | null;
+	end_date?: string | null;
+	color?: string | null;
+	repo_url?: string | null;
+};
+
+export type CreateProjectResponse = {
+	project_id: string;
+};
+
+export type UpdateProjectParams = {
+	title?: string | null;
+	description?: string | null;
+	status?: ProjectStatus | null;
+	start_date?: string | null;
+	end_date?: string | null;
+	color?: string | null;
+	repo_url?: string | null;
+	is_archived?: boolean | null;
 };

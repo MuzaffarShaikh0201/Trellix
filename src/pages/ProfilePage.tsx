@@ -5,11 +5,13 @@ import Button from "@/components/ui/Button";
 import { CustomLoader } from "@/components/ui/CustomLoader";
 import FormField from "@/components/ui/FormField";
 import { useAuth } from "@/contexts/auth";
-import { updateUserProfile } from "@/lib/api/user";
+import { updateUserPassword, updateUserProfile } from "@/lib/api/user";
 import { getRequestErrorMessage } from "@/lib/getRequestErrorMessage";
 import { showAlert } from "@/services/alertService";
 
 const NAME_MAX = 32;
+const PASSWORD_MIN = 8;
+const PASSWORD_MAX = 20;
 
 function initials(firstName: string, lastName: string): string {
 	const first = firstName.trim().charAt(0);
@@ -23,6 +25,10 @@ export function ProfilePage() {
 	const [firstName, setFirstName] = useState("");
 	const [lastName, setLastName] = useState("");
 	const [loading, setLoading] = useState(false);
+	const [currentPassword, setCurrentPassword] = useState("");
+	const [newPassword, setNewPassword] = useState("");
+	const [confirmPassword, setConfirmPassword] = useState("");
+	const [passwordLoading, setPasswordLoading] = useState(false);
 
 	useEffect(() => {
 		if (!user) return;
@@ -87,6 +93,61 @@ export function ProfilePage() {
 			);
 		} finally {
 			setLoading(false);
+		}
+	}
+
+	async function handlePasswordSubmit(e: FormEvent) {
+		e.preventDefault();
+		if (!user) return;
+
+		if (!currentPassword || !newPassword || !confirmPassword) {
+			showAlert(
+				"Validation Error",
+				"warning",
+				"Please fill in all password fields.",
+			);
+			return;
+		}
+
+		if (newPassword.length < PASSWORD_MIN || newPassword.length > PASSWORD_MAX) {
+			showAlert(
+				"Validation Error",
+				"warning",
+				`Password must be between ${PASSWORD_MIN} and ${PASSWORD_MAX} characters.`,
+			);
+			return;
+		}
+
+		if (newPassword !== confirmPassword) {
+			showAlert(
+				"Validation Error",
+				"warning",
+				"New password and confirmation do not match.",
+			);
+			return;
+		}
+
+		setPasswordLoading(true);
+		try {
+			await updateUserPassword({
+				current_password: currentPassword,
+				new_password: newPassword,
+			});
+			setCurrentPassword("");
+			setNewPassword("");
+			setConfirmPassword("");
+			showAlert("Password updated", "success", "Your password was changed.");
+		} catch (error: unknown) {
+			showAlert(
+				"Update failed",
+				"error",
+				getRequestErrorMessage(
+					error,
+					"Could not update your password. Please try again.",
+				),
+			);
+		} finally {
+			setPasswordLoading(false);
 		}
 	}
 
@@ -172,6 +233,66 @@ export function ProfilePage() {
 										color="#ffffff"
 										containerStyle={{ width: 24, height: 24 }}
 										aria-label="Saving profile changes"
+									/>
+								}
+							/>
+						</div>
+					</div>
+				</form>
+			</section>
+
+			<section className="mt-6 rounded-xl border border-primary/10 bg-background-secondary p-5 shadow-sm sm:p-6">
+				<h2 className="text-lg font-semibold text-text-primary">Password</h2>
+				<p className="mt-1 text-sm text-text-secondary">
+					Update your account password.
+				</p>
+
+				<form onSubmit={handlePasswordSubmit} className="mt-5 space-y-4">
+					<FormField
+						title="Current password"
+						placeholder="Enter current password"
+						type="password"
+						value={currentPassword}
+						autoComplete="current-password"
+						handleChange={(e: ChangeEvent<HTMLInputElement>) =>
+							setCurrentPassword(e.target.value)
+						}
+					/>
+					<div className="grid gap-4 sm:grid-cols-2">
+						<FormField
+							title="New password"
+							placeholder="Enter new password"
+							type="password"
+							value={newPassword}
+							autoComplete="new-password"
+							handleChange={(e: ChangeEvent<HTMLInputElement>) =>
+								setNewPassword(e.target.value)
+							}
+						/>
+						<FormField
+							title="Confirm new password"
+							placeholder="Confirm new password"
+							type="password"
+							value={confirmPassword}
+							autoComplete="new-password"
+							handleChange={(e: ChangeEvent<HTMLInputElement>) =>
+								setConfirmPassword(e.target.value)
+							}
+						/>
+					</div>
+					<div className="flex justify-end pt-1">
+						<div className="w-full sm:w-44">
+							<Button
+								type="submit"
+								title="Update password"
+								loading={passwordLoading}
+								disabled={passwordLoading}
+								loader={
+									<CustomLoader
+										size={24}
+										color="#ffffff"
+										containerStyle={{ width: 24, height: 24 }}
+										aria-label="Updating password"
 									/>
 								}
 							/>

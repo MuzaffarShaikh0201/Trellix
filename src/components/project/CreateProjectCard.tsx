@@ -1,21 +1,45 @@
-import { MdAddCircleOutline } from "react-icons/md";
+import { MdAdd, MdDescription } from "react-icons/md";
 
-import Button from "@/components/ui/Button";
+import { projectCardShellClass } from "@/components/project/project-card-shell";
+import { cn } from "@/lib/utils";
 
 export function CreateProjectCard({ onCreate }: { onCreate: () => void }) {
 	return (
-		<article className="flex h-[19rem] flex-col items-center justify-center rounded-xl border border-dashed border-primary/35 bg-background-secondary p-4 text-center shadow-sm transition-colors hover:border-primary/40">
-			<div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-tint">
-				<MdAddCircleOutline className="h-10 w-10 text-primary" aria-hidden />
-			</div>
-			<h3 className="mt-4 text-lg font-semibold text-text-primary">
-				Start a new project
-			</h3>
-			<p className="mt-2 max-w-[18rem] text-sm text-text-secondary">
-				Create and organize your next idea in Trellix.
-			</p>
-			<div className="mt-5 w-full max-w-[11rem]">
-				<Button title="Create Project" onClick={onCreate} />
+		<article
+			className={cn(
+				"group",
+				projectCardShellClass,
+				"items-center justify-center p-4 text-center",
+			)}
+		>
+			<div className="flex flex-col items-center justify-center">
+				<div className="relative">
+					<MdDescription
+						className="h-14 w-14 text-text-primary opacity-90"
+						aria-hidden
+					/>
+					<span
+						className="absolute -right-0.5 -top-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm"
+						aria-hidden
+					>
+						<MdAdd className="h-4 w-4" />
+					</span>
+				</div>
+
+				<p className="mt-5 text-sm font-medium text-text-primary">
+					Up for a new project?
+				</p>
+
+				<button
+					type="button"
+					onClick={onCreate}
+					className={cn(
+						"mt-5 rounded-lg border border-primary/50 bg-transparent px-5 py-2 text-sm font-medium text-text-primary",
+						"transition-colors hover:border-primary hover:bg-primary/10",
+					)}
+				>
+					Create Project
+				</button>
 			</div>
 		</article>
 	);

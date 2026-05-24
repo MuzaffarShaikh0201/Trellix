@@ -14,6 +14,7 @@ import {
 import { CreateProjectCard } from "@/components/project/CreateProjectCard";
 import { CreateProjectModal } from "@/components/project/CreateProjectModal";
 import { ProjectCard } from "@/components/project/ProjectCard";
+import { ProjectCardGridCell } from "@/components/project/ProjectCardGridCell";
 import { ProjectCardSkeleton } from "@/components/project/ProjectCardSkeleton";
 import Button from "@/components/ui/Button";
 import { Pagination } from "@/components/ui/Pagination";
@@ -21,53 +22,23 @@ import { createProject, fetchProjects, toggleProjectFavorite } from "@/lib/api/p
 import { getRequestErrorMessage } from "@/lib/getRequestErrorMessage";
 import { cn } from "@/lib/utils";
 import { showAlert } from "@/services/alertService";
-import type {
-	ProjectCategory,
-	ProjectSortBy,
-	ProjectSortOrder,
-	ProjectStatus,
-} from "@/types/project";
+import type { ProjectSortBy, ProjectSortOrder, ProjectStatus } from "@/types/project";
 
 const STATUS_FILTER_OPTIONS: { value: ProjectStatus | "ALL"; label: string }[] = [
 	{ value: "ALL", label: "All statuses" },
-	{ value: "ACTIVE", label: "Active" },
-	{ value: "PENDING", label: "Pending" },
+	{ value: "PLANNING", label: "Planning" },
+	{ value: "IN_PROGRESS", label: "In progress" },
 	{ value: "ON_HOLD", label: "On hold" },
 	{ value: "COMPLETED", label: "Completed" },
-	{ value: "CANCELLED", label: "Cancelled" },
-];
-
-const CATEGORY_FILTER_OPTIONS: { value: ProjectCategory | "ALL"; label: string }[] = [
-	{ value: "ALL", label: "All categories" },
-	{ value: "WORK", label: "Work" },
-	{ value: "PERSONAL", label: "Personal" },
-	{ value: "LEARNING", label: "Learning" },
-	{ value: "HEALTH", label: "Health" },
-	{ value: "FINANCE", label: "Finance" },
-	{ value: "SIDE_PROJECT", label: "Side project" },
-	{ value: "CREATIVE", label: "Creative" },
-	{ value: "TRAVEL", label: "Travel" },
-	{ value: "HOME", label: "Home" },
-	{ value: "OTHER", label: "Other" },
-];
-
-const CREATE_CATEGORY_OPTIONS: { value: ProjectCategory; label: string }[] = [
-	{ value: "WORK", label: "Work" },
-	{ value: "PERSONAL", label: "Personal" },
-	{ value: "LEARNING", label: "Learning" },
-	{ value: "HEALTH", label: "Health" },
-	{ value: "FINANCE", label: "Finance" },
-	{ value: "SIDE_PROJECT", label: "Side project" },
-	{ value: "CREATIVE", label: "Creative" },
-	{ value: "TRAVEL", label: "Travel" },
-	{ value: "HOME", label: "Home" },
-	{ value: "OTHER", label: "Other" },
+	{ value: "ABANDONED", label: "Abandoned" },
 ];
 
 const SORT_BY_OPTIONS: { value: ProjectSortBy; label: string }[] = [
 	{ value: "updated_at", label: "Recently updated" },
 	{ value: "created_at", label: "Recently created" },
 	{ value: "title", label: "Title" },
+	{ value: "start_date", label: "Start date" },
+	{ value: "end_date", label: "End date" },
 ];
 
 const SORT_ORDER_OPTIONS: { value: ProjectSortOrder; label: string }[] = [
@@ -83,15 +54,16 @@ const PROJECT_TABS: { value: ProjectTab; label: string }[] = [
 	{ value: "ARCHIVED", label: "Archived" },
 ];
 
+/** Fixed page size until configurable in settings. */
+const PROJECTS_PAGE_SIZE = 10;
+
 export function ProjectsPage() {
 	const queryClient = useQueryClient();
 	const [activeTab, setActiveTab] = useState<ProjectTab>("ALL");
 	const [statusFilter, setStatusFilter] = useState<ProjectStatus | "ALL">("ALL");
-	const [categoryFilter, setCategoryFilter] = useState<ProjectCategory | "ALL">("ALL");
 	const [sortBy, setSortBy] = useState<ProjectSortBy>("updated_at");
 	const [sortOrder, setSortOrder] = useState<ProjectSortOrder>("desc");
 	const [page, setPage] = useState(1);
-	const [rowsPerPage, setRowsPerPage] = useState(6);
 	const [filterModalOpen, setFilterModalOpen] = useState(false);
 	const [sortModalOpen, setSortModalOpen] = useState(false);
 	const filterRootRef = useRef<HTMLDivElement>(null);
@@ -101,16 +73,16 @@ export function ProjectsPage() {
 	const [createModalOpen, setCreateModalOpen] = useState(false);
 	const [createTitle, setCreateTitle] = useState("");
 	const [createDescription, setCreateDescription] = useState("");
-	const [createCategory, setCreateCategory] = useState<ProjectCategory>("WORK");
+	const [createRepoUrl, setCreateRepoUrl] = useState("");
 	const [createStartDate, setCreateStartDate] = useState("");
-	const [createDueDate, setCreateDueDate] = useState("");
+	const [createEndDate, setCreateEndDate] = useState("");
 	const [createSubmitting, setCreateSubmitting] = useState(false);
+
+	const archivedOnly = activeTab === "ARCHIVED" ? true : undefined;
 	const effectiveStatusFilter: ProjectStatus | undefined =
-		activeTab === "ARCHIVED"
-			? "ARCHIVED"
-			: statusFilter === "ALL"
-				? undefined
-				: statusFilter;
+		activeTab === "ARCHIVED" || statusFilter === "ALL"
+			? undefined
+			: statusFilter;
 	const favoriteOnly = activeTab === "FAVORITES" ? true : undefined;
 
 	const queryKey = useMemo(
@@ -120,9 +92,9 @@ export function ProjectsPage() {
 				{
 					tab: activeTab,
 					page,
-					limit: rowsPerPage,
+					limit: PROJECTS_PAGE_SIZE,
 					status: effectiveStatusFilter,
-					category: categoryFilter,
+					is_archived: archivedOnly,
 					is_favorite: favoriteOnly,
 					sort_by: sortBy,
 					sort_order: sortOrder,
@@ -131,9 +103,9 @@ export function ProjectsPage() {
 		[
 			activeTab,
 			page,
-			rowsPerPage,
+			PROJECTS_PAGE_SIZE,
 			effectiveStatusFilter,
-			categoryFilter,
+			archivedOnly,
 			favoriteOnly,
 			sortBy,
 			sortOrder,
@@ -196,9 +168,9 @@ export function ProjectsPage() {
 		queryFn: () =>
 			fetchProjects({
 				page,
-				limit: rowsPerPage,
+				limit: PROJECTS_PAGE_SIZE,
 				status: effectiveStatusFilter,
-				category: categoryFilter === "ALL" ? undefined : categoryFilter,
+				is_archived: archivedOnly,
 				is_favorite: favoriteOnly,
 				sort_by: sortBy,
 				sort_order: sortOrder,
@@ -245,17 +217,19 @@ export function ProjectsPage() {
 	const totalItems = data?.total_items ?? 0;
 	const totalPages = Math.max(1, data?.total_pages ?? 1);
 	const currentPage = Math.min(page, totalPages);
-	const startItem = totalItems === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
-	const endItem = Math.min(currentPage * rowsPerPage, totalItems);
+	const startItem =
+		totalItems === 0 ? 0 : (currentPage - 1) * PROJECTS_PAGE_SIZE + 1;
+	const endItem = Math.min(currentPage * PROJECTS_PAGE_SIZE, totalItems);
 
 	const canGoPrev = currentPage > 1;
 	const canGoNext = currentPage < totalPages;
+
 	function resetCreateForm() {
 		setCreateTitle("");
 		setCreateDescription("");
-		setCreateCategory("WORK");
+		setCreateRepoUrl("");
 		setCreateStartDate("");
-		setCreateDueDate("");
+		setCreateEndDate("");
 	}
 
 	function openCreateModal() {
@@ -278,14 +252,6 @@ export function ProjectsPage() {
 			showAlert("Validation Error", "warning", "Project title is required.");
 			return;
 		}
-		if (!createStartDate) {
-			showAlert(
-				"Validation Error",
-				"warning",
-				"Start date is required.",
-			);
-			return;
-		}
 
 		setCreateSubmitting(true);
 		void (async () => {
@@ -293,10 +259,9 @@ export function ProjectsPage() {
 				await createProject({
 					title,
 					description: createDescription.trim() || null,
-					category: createCategory,
-					status: "PENDING",
-					start_date: createStartDate,
-					due_date: createDueDate || null,
+					repo_url: createRepoUrl.trim() || null,
+					start_date: createStartDate || null,
+					end_date: createEndDate || null,
 				});
 				showAlert(
 					"Project created",
@@ -304,7 +269,6 @@ export function ProjectsPage() {
 					"Your project has been created.",
 				);
 
-				// Refresh current tab results.
 				await queryClient.invalidateQueries({ queryKey: ["projects"] });
 				closeCreateModal();
 			} catch (err) {
@@ -330,13 +294,15 @@ export function ProjectsPage() {
 				? "No archived projects found yet."
 				: "No projects found yet. Use the card above to create your first one.";
 
+	const showCreateCard = activeTab === "ALL";
+
 	return (
 		<section className="space-y-5">
 			<header className="flex flex-wrap items-end justify-between gap-3">
 				<div>
 					<h1 className="text-2xl font-bold text-text-primary">Projects</h1>
 					<p className="mt-1 text-sm text-text-secondary">
-						Track all your projects in one place.
+						Track software projects, repos, and delivery in one place.
 					</p>
 					<div className="mt-3 flex items-center gap-1 border-b border-primary/10">
 						{PROJECT_TABS.map((tab) => {
@@ -421,31 +387,6 @@ export function ProjectsPage() {
 											</select>
 										</div>
 									) : null}
-									<div>
-										<label className="text-xs font-medium uppercase tracking-wide text-text-secondary">
-											Category
-										</label>
-										<select
-											value={categoryFilter}
-											onChange={(e) => {
-												setCategoryFilter(
-													e.target.value as ProjectCategory | "ALL",
-												);
-												setPage(1);
-											}}
-											className={cn(
-												"mt-1.5 h-9 w-full cursor-pointer rounded-lg border border-primary/15 bg-tint px-3 text-sm text-text-primary",
-												"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
-											)}
-											aria-label="Filter projects by category"
-										>
-											{CATEGORY_FILTER_OPTIONS.map((option) => (
-												<option key={option.value} value={option.value}>
-													{option.label}
-												</option>
-											))}
-										</select>
-									</div>
 								</div>
 							</div>
 						) : null}
@@ -569,28 +510,44 @@ export function ProjectsPage() {
 				</div>
 			) : null}
 
-			<div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+			<div className="grid auto-rows-fr grid-cols-1 gap-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 				{isPending
-					? Array.from({ length: rowsPerPage }, (_, idx) => (
-							<ProjectCardSkeleton key={`project-skeleton-${idx}`} />
+					? Array.from({ length: PROJECTS_PAGE_SIZE }, (_, idx) => (
+							<ProjectCardGridCell
+								key={`project-skeleton-${idx}`}
+								index={idx}
+							>
+								<ProjectCardSkeleton />
+							</ProjectCardGridCell>
 						))
-					: projects.map((project) => (
-							<ProjectCard
-								key={project.id}
-								project={project}
-								onToggleFavorite={(projectId) =>
-									favoriteMutation.mutate(projectId)
-								}
-								favoritePending={
-									favoriteMutation.isPending &&
-									favoriteMutation.variables === project.id
-								}
-							/>
-						))}
-
-				{activeTab === "ALL" ? (
-					<CreateProjectCard onCreate={handleCreateProjectClick} />
-				) : null}
+					: (
+							<>
+								{projects.map((project, idx) => (
+									<ProjectCardGridCell
+										key={project.id}
+										index={idx}
+									>
+										<ProjectCard
+											project={project}
+											onToggleFavorite={(projectId) =>
+												favoriteMutation.mutate(projectId)
+											}
+											favoritePending={
+												favoriteMutation.isPending &&
+												favoriteMutation.variables === project.id
+											}
+										/>
+									</ProjectCardGridCell>
+								))}
+								{showCreateCard ? (
+									<ProjectCardGridCell index={projects.length}>
+										<CreateProjectCard
+											onCreate={handleCreateProjectClick}
+										/>
+									</ProjectCardGridCell>
+								) : null}
+							</>
+						)}
 			</div>
 
 			{!isPending && !isError && projects.length === 0 ? (
@@ -605,11 +562,6 @@ export function ProjectsPage() {
 
 			{!isError && totalItems > 0 ? (
 				<Pagination
-					rowsPerPage={rowsPerPage}
-					onRowsPerPageChange={(next) => {
-						setRowsPerPage(next);
-						setPage(1);
-					}}
 					startItem={startItem}
 					endItem={endItem}
 					totalItems={totalItems}
@@ -619,7 +571,6 @@ export function ProjectsPage() {
 					onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
 					onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
 					onLastPage={() => setPage(totalPages)}
-					pageSizeSelectId="projects-rows-per-page"
 				/>
 			) : null}
 
@@ -629,15 +580,14 @@ export function ProjectsPage() {
 				onSubmit={handleCreateSubmit}
 				title={createTitle}
 				description={createDescription}
-				category={createCategory}
+				repoUrl={createRepoUrl}
 				startDate={createStartDate}
-				dueDate={createDueDate}
+				endDate={createEndDate}
 				onTitleChange={(e) => setCreateTitle(e.target.value)}
 				onDescriptionChange={(e) => setCreateDescription(e.target.value)}
-				onCategoryChange={(e) => setCreateCategory(e.target.value as ProjectCategory)}
+				onRepoUrlChange={(e) => setCreateRepoUrl(e.target.value)}
 				onStartDateChange={(e) => setCreateStartDate(e.target.value)}
-				onDueDateChange={(e) => setCreateDueDate(e.target.value)}
-				categoryOptions={CREATE_CATEGORY_OPTIONS}
+				onEndDateChange={(e) => setCreateEndDate(e.target.value)}
 				submitting={createSubmitting}
 			/>
 		</section>

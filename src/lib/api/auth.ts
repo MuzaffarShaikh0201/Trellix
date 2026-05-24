@@ -32,11 +32,3 @@ export function logoutUser() {
 		method: "POST",
 	});
 }
-
-export function requestPasswordReset(email: string) {
-	return apiRequest<MessageResponse>("/forgot-password", {
-		method: "POST",
-		auth: false,
-		searchParams: { email },
-	});
-}

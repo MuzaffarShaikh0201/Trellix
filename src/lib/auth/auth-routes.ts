@@ -2,7 +2,6 @@
 export const AUTH_ROUTE_PATHS: ReadonlySet<string> = new Set([
 	"/login",
 	"/signup",
-	"/forgot-password",
 ]);
 
 export function pathnameOnly(path: string): string {

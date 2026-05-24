@@ -5,12 +5,6 @@ import Button from "@/components/ui/Button";
 import { CustomLoader } from "@/components/ui/CustomLoader";
 import FormField from "@/components/ui/FormField";
 import { cn } from "@/lib/utils";
-import type { ProjectCategory } from "@/types/project";
-
-type CategoryOption = {
-	value: ProjectCategory;
-	label: string;
-};
 
 type CreateProjectModalProps = {
 	open: boolean;
@@ -18,15 +12,14 @@ type CreateProjectModalProps = {
 	onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 	title: string;
 	description: string;
-	category: ProjectCategory;
+	repoUrl: string;
 	startDate: string;
-	dueDate: string;
+	endDate: string;
 	onTitleChange: (event: ChangeEvent<HTMLInputElement>) => void;
 	onDescriptionChange: (event: ChangeEvent<HTMLInputElement>) => void;
-	onCategoryChange: (event: ChangeEvent<HTMLSelectElement>) => void;
+	onRepoUrlChange: (event: ChangeEvent<HTMLInputElement>) => void;
 	onStartDateChange: (event: ChangeEvent<HTMLInputElement>) => void;
-	onDueDateChange: (event: ChangeEvent<HTMLInputElement>) => void;
-	categoryOptions: CategoryOption[];
+	onEndDateChange: (event: ChangeEvent<HTMLInputElement>) => void;
 	submitting: boolean;
 };
 
@@ -36,15 +29,14 @@ export function CreateProjectModal({
 	onSubmit,
 	title,
 	description,
-	category,
+	repoUrl,
 	startDate,
-	dueDate,
+	endDate,
 	onTitleChange,
 	onDescriptionChange,
-	onCategoryChange,
+	onRepoUrlChange,
 	onStartDateChange,
-	onDueDateChange,
-	categoryOptions,
+	onEndDateChange,
 	submitting,
 }: CreateProjectModalProps) {
 	if (!open) return null;
@@ -70,10 +62,10 @@ export function CreateProjectModal({
 							Create project
 						</p>
 						<h2 className="mt-2 text-xl font-bold text-text-primary">
-							New project
+							New dev project
 						</h2>
 						<p className="mt-1 text-sm text-text-secondary">
-							Add details to organize your work.
+							Add a repo link and timeline to track your work.
 						</p>
 					</div>
 					<button
@@ -91,7 +83,7 @@ export function CreateProjectModal({
 						<div className="sm:col-span-2">
 							<FormField
 								title="Title"
-								placeholder="e.g. Build the Trellix dashboard"
+								placeholder="e.g. Auth service revamp"
 								type="text"
 								value={title}
 								handleChange={onTitleChange}
@@ -110,25 +102,15 @@ export function CreateProjectModal({
 							/>
 						</div>
 
-						<div>
-							<label className="text-xs font-medium uppercase tracking-wide text-text-secondary">
-								Category
-							</label>
-							<select
-								value={category}
-								onChange={onCategoryChange}
-								className={cn(
-									"mt-1.5 h-9 w-full cursor-pointer rounded-lg border border-primary/15 bg-tint px-3 text-sm text-text-primary",
-									"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
-								)}
-								aria-label="Project category"
-							>
-								{categoryOptions.map((option) => (
-									<option key={option.value} value={option.value}>
-										{option.label}
-									</option>
-								))}
-							</select>
+						<div className="sm:col-span-2">
+							<FormField
+								title="Repository URL"
+								placeholder="https://github.com/org/repo (optional)"
+								type="url"
+								value={repoUrl}
+								handleChange={onRepoUrlChange}
+								autoComplete="off"
+							/>
 						</div>
 
 						<div>
@@ -143,11 +125,11 @@ export function CreateProjectModal({
 
 						<div>
 							<FormField
-								title="Due date"
+								title="End date"
 								placeholder=""
 								type="date"
-								value={dueDate}
-								handleChange={onDueDateChange}
+								value={endDate}
+								handleChange={onEndDateChange}
 							/>
 						</div>
 					</div>

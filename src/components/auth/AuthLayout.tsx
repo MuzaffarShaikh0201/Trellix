@@ -38,9 +38,9 @@ export function AuthLayout() {
 								Trellix
 							</h1>
 							<p className="text-sm leading-snug text-wrap text-text-secondary select-none">
-								A modern, React-powered project management app
-								inspired by Kanban, built to organize tasks and
-								stay productive.
+								A project manager built for software
+								developers—organize dev work, link repos, and
+								track delivery from planning to ship.
 							</p>
 						</div>
 					</div>

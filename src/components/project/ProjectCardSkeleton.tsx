@@ -1,51 +1,49 @@
+import { projectCardShellClass } from "@/components/project/project-card-shell";
+import { cn } from "@/lib/utils";
+
 export function ProjectCardSkeleton() {
 	return (
-		<div className="h-[19rem] animate-pulse rounded-xl border border-primary/15 bg-background-secondary p-4 shadow-sm">
-			<div className="flex items-start justify-between gap-3">
-				<div className="flex min-w-0 items-center gap-2">
-					<div className="h-10 w-10 shrink-0 rounded-full border border-primary/20 bg-tint" />
-					<div className="min-w-0 space-y-2">
-						<div className="h-6 w-[min(100%,14rem)] rounded bg-tint" />
-						<div className="h-5 w-20 rounded-md bg-tint" />
+		<div
+			className={cn(
+				projectCardShellClass,
+				"animate-pulse bg-background-secondary/40",
+			)}
+		>
+			<div className="flex flex-1 flex-col p-4 pb-3">
+				<div className="flex items-start justify-between">
+					<div className="h-11 w-11 rounded-full bg-tint" />
+					<div className="flex gap-1">
+						<div className="h-7 w-7 rounded-md bg-tint" />
+						<div className="h-7 w-7 rounded-md bg-tint" />
 					</div>
 				</div>
-				<div className="shrink-0 pt-0.5">
-					<div className="h-8 w-8 rounded-md bg-tint" />
-				</div>
-			</div>
-
-			<div className="mt-3 h-5 w-full max-w-full rounded bg-tint" />
-
-			<div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-				<div className="rounded-lg border border-primary/10 bg-tint p-3">
-					<div className="h-3 w-24 rounded bg-background-secondary" />
-					<div className="mt-2 flex gap-2">
-						<div className="h-4 w-6 rounded bg-background-secondary" />
-						<div className="h-4 w-6 rounded bg-background-secondary" />
-						<div className="h-4 w-6 rounded bg-background-secondary" />
-					</div>
-					<div className="mt-2 h-1.5 w-full rounded-full bg-background-secondary" />
-				</div>
-				<div className="rounded-lg border border-primary/10 bg-tint p-3">
-					<div className="h-3 w-28 rounded bg-background-secondary" />
-					<div className="mt-2 flex items-center justify-between">
-						<div className="h-4 w-10 rounded bg-background-secondary" />
-						<div className="h-4 w-14 rounded bg-background-secondary" />
-					</div>
-					<div className="mt-2 h-1.5 w-full rounded-full bg-background-secondary" />
-				</div>
-			</div>
-
-			<div className="mt-4">
-				<div className="grid grid-cols-2 gap-3 rounded-lg border border-primary/10 bg-tint p-3">
+				<div className="mt-3 h-5 w-[min(100%,10rem)] rounded bg-tint" />
+				<div className="mt-2 h-4 w-24 rounded bg-tint" />
+				<div className="mt-2 h-5 w-16 rounded border border-tint bg-tint" />
+				<div className="mt-4 grid flex-1 grid-cols-2 gap-3">
 					<div className="space-y-2">
-						<div className="h-3 w-16 rounded bg-background-secondary" />
-						<div className="h-4 w-24 rounded bg-background-secondary" />
+						<div className="h-3 w-20 rounded bg-tint" />
+						<div className="h-4 w-16 rounded bg-tint" />
+						<div className="h-1 w-full rounded-full bg-tint" />
 					</div>
 					<div className="space-y-2">
-						<div className="h-3 w-16 rounded bg-background-secondary" />
-						<div className="h-4 w-24 rounded bg-background-secondary" />
+						<div className="h-3 w-24 rounded bg-tint" />
+						<div className="flex justify-between">
+							<div className="h-4 w-8 rounded bg-tint" />
+							<div className="h-4 w-10 rounded bg-tint" />
+						</div>
+						<div className="h-1 w-full rounded-full bg-tint" />
 					</div>
+				</div>
+			</div>
+			<div className="grid grid-cols-2 gap-4 border-t border-transparent px-4 py-3">
+				<div className="space-y-1.5">
+					<div className="h-3 w-16 rounded bg-tint" />
+					<div className="h-4 w-24 rounded bg-tint" />
+				</div>
+				<div className="space-y-1.5">
+					<div className="h-3 w-16 rounded bg-tint" />
+					<div className="h-4 w-24 rounded bg-tint" />
 				</div>
 			</div>
 		</div>

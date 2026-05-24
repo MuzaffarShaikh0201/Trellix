@@ -112,15 +112,6 @@ export function LoginForm() {
 					/>
 				</div>
 
-				<div className="flex w-full items-center justify-end p-2 lg:p-4">
-					<Link
-						to="/forgot-password"
-						className="text-xs text-primary underline-offset-2 hover:underline"
-					>
-						Forgot password?
-					</Link>
-				</div>
-
 				<div className="flex w-full flex-col items-center justify-center gap-4 p-2 lg:p-4">
 					<Button
 						title="Login"

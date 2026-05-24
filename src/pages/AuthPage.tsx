@@ -1,12 +1,11 @@
 import { Link, useLocation } from "react-router";
 
-import { ForgotPasswordForm } from "@/components/auth/ForgotPasswordForm";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SignupForm } from "@/components/auth/SignupForm";
+
 function AuthFormForPath({ pathname }: { pathname: string }) {
 	if (pathname === "/signup") return <SignupForm />;
-	if (pathname === "/forgot-password") return <ForgotPasswordForm />;
 	return <LoginForm />;
 }
 
@@ -29,11 +28,6 @@ function AuthFormNav({ pathname }: { pathname: string }) {
 					Sign up
 				</Link>
 			)}
-			{pathname !== "/forgot-password" && (
-				<Link to="/forgot-password" className={linkClass}>
-					Forgot password
-				</Link>
-			)}
 			<Link to="/" className={linkClass}>
 				Home
 			</Link>
@@ -43,12 +37,12 @@ function AuthFormNav({ pathname }: { pathname: string }) {
 
 function authSectionLabel(pathname: string) {
 	if (pathname === "/signup") return "Sign up form";
-	if (pathname === "/forgot-password") return "Forgot password form";
 	return "Login form";
 }
 
 export function AuthPage() {
 	const { pathname } = useLocation();
+	const isAuthForm = pathname === "/login" || pathname === "/signup";
 
 	return (
 		<div className="flex min-h-dvh w-full bg-background-primary">
@@ -62,16 +56,12 @@ export function AuthPage() {
 			<main className="flex min-h-dvh w-full flex-col bg-background-secondary lg:w-[30%] lg:min-h-dvh lg:justify-center">
 				<div
 					className={
-						pathname === "/login" ||
-						pathname === "/signup" ||
-						pathname === "/forgot-password"
+						isAuthForm
 							? "mx-auto flex h-full min-h-dvh w-full max-w-md flex-1 flex-col px-4 py-6 lg:min-h-0 lg:px-6 lg:py-10"
 							: "mx-auto w-full max-w-md px-6 py-10"
 					}
 				>
-					{pathname === "/login" ||
-					pathname === "/signup" ||
-					pathname === "/forgot-password" ? (
+					{isAuthForm ? (
 						<div
 							className="flex min-h-0 flex-1 flex-col"
 							aria-label={authSectionLabel(pathname)}

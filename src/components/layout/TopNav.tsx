@@ -42,7 +42,7 @@ export function TopNav({ menuOpen, onMenuToggle }: TopNavProps) {
 				/>
 				<input
 					type="search"
-					placeholder="Search projects, tasks, notes…"
+					placeholder="Search projects and repos…"
 					className={cn(
 						"h-10 w-full rounded-full border border-transparent bg-tint py-2 pl-10 pr-4 text-sm text-text-primary",
 						"placeholder:text-text-secondary",

@@ -82,14 +82,6 @@ function App() {
 					</GuestOnlyRoute>
 				}
 			/>
-			<Route
-				path="/forgot-password"
-				element={
-					<GuestOnlyRoute>
-						<AuthPage />
-					</GuestOnlyRoute>
-				}
-			/>
 			<Route path="/500" element={<ServerErrorPage />} />
 			<Route path="/503" element={<ServiceUnavailablePage />} />
 			<Route path="*" element={<NotFoundPage />} />

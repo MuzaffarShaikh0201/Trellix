@@ -9,9 +9,9 @@ import {
 	MdSettings,
 } from "react-icons/md";
 import type { IconType } from "react-icons";
+import { FiExternalLink } from "react-icons/fi";
 
 import { cn } from "@/lib/utils";
-import { FiExternalLink } from "react-icons/fi";
 
 type NavItem = {
 	to: string;
@@ -58,7 +58,7 @@ export function Sidebar({ mobileOpen, onNavigate }: SidebarProps) {
 					height={32}
 					className="size-8 shrink-0"
 				/>
-				<p className="text-lg font-bold tracking-tight text-text-primary pb-1">
+				<p className="pb-1 text-lg font-bold tracking-tight text-text-primary">
 					Trellix
 				</p>
 			</div>
