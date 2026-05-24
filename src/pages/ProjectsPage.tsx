@@ -510,7 +510,7 @@ export function ProjectsPage() {
 				</div>
 			) : null}
 
-			<div className="grid auto-rows-fr grid-cols-1 gap-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+			<div className="grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-0 lg:grid-cols-3 xl:grid-cols-4">
 				{isPending
 					? Array.from({ length: PROJECTS_PAGE_SIZE }, (_, idx) => (
 							<ProjectCardGridCell

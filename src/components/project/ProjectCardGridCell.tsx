@@ -29,7 +29,7 @@ export function ProjectCardGridCell({
 			{showTop ? (
 				<div
 					className={cn(
-						"pointer-events-none absolute left-3 right-3 top-0 z-10 h-px",
+						"pointer-events-none absolute left-3 right-3 top-0 z-10 hidden h-px sm:block",
 						dividerClass,
 					)}
 					aria-hidden
@@ -38,7 +38,7 @@ export function ProjectCardGridCell({
 			{showRight ? (
 				<div
 					className={cn(
-						"pointer-events-none absolute bottom-3 right-0 top-3 z-10 w-px",
+						"pointer-events-none absolute bottom-3 right-0 top-3 z-10 hidden w-px sm:block",
 						dividerClass,
 					)}
 					aria-hidden

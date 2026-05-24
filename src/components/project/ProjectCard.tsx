@@ -273,7 +273,7 @@ export function ProjectCard({
 				className={cn(
 					"mt-auto grid shrink-0 grid-cols-2 gap-4 px-4 py-3",
 					"bg-transparent transition-colors",
-					"group-hover:bg-tint",
+					"max-sm:bg-tint sm:group-hover:bg-tint",
 				)}
 			>
 				<div>

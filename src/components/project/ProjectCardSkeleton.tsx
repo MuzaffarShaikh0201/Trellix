@@ -36,7 +36,7 @@ export function ProjectCardSkeleton() {
 					</div>
 				</div>
 			</div>
-			<div className="grid grid-cols-2 gap-4 border-t border-transparent px-4 py-3">
+			<div className="mt-auto grid grid-cols-2 gap-4 bg-transparent px-4 py-3 max-sm:bg-tint">
 				<div className="space-y-1.5">
 					<div className="h-3 w-16 rounded bg-tint" />
 					<div className="h-4 w-24 rounded bg-tint" />
