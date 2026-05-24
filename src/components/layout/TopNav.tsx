@@ -1,29 +1,12 @@
-import {
-	MdAdd,
-	MdClose,
-	MdNotificationsNone,
-	MdSearch,
-} from "react-icons/md";
+import { MdAdd, MdNotificationsNone, MdSearch } from "react-icons/md";
 
 import { AppBrand } from "@/components/layout/AppBrand";
 import { HeaderNavDivider } from "@/components/layout/HeaderNavDivider";
-import { SidebarToggleIcon } from "@/components/layout/SidebarToggleIcon";
+import { TopNavLinks } from "@/components/layout/TopNavLinks";
 import { UserMenu } from "@/components/layout/UserMenu";
 import { cn } from "@/lib/utils";
 
-type TopNavProps = {
-	menuOpen: boolean;
-	onMenuToggle: () => void;
-	onMenuPointerEnter: () => void;
-	onMenuPointerLeave: () => void;
-};
-
-export function TopNav({
-	menuOpen,
-	onMenuToggle,
-	onMenuPointerEnter,
-	onMenuPointerLeave,
-}: TopNavProps) {
+export function TopNav() {
 	return (
 		<header
 			className={cn(
@@ -33,30 +16,11 @@ export function TopNav({
 			<div className="flex min-w-0 shrink-0 items-center">
 				<AppBrand />
 				<div
-					className="ml-3 flex shrink-0 items-center sm:ml-20"
-					onPointerEnter={onMenuPointerEnter}
-					onPointerLeave={onMenuPointerLeave}
-				>
-					<button
-						type="button"
-						className={cn(
-							"flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-text-primary transition-colors",
-							"hover:bg-tint",
-							menuOpen && "bg-tint",
-						)}
-						aria-label={menuOpen ? "Close menu" : "Open menu"}
-						aria-expanded={menuOpen}
-						aria-controls="app-sidebar-nav"
-						onClick={onMenuToggle}
-					>
-						{menuOpen ? (
-							<MdClose className="h-6 w-6" aria-hidden />
-						) : (
-							<SidebarToggleIcon className="h-6 w-6" />
-						)}
-					</button>
-				</div>
-				<HeaderNavDivider className="ml-4 hidden sm:flex" />
+					className="ml-3 h-10 w-10 shrink-0 sm:ml-20"
+					aria-hidden
+				/>
+				<HeaderNavDivider className="ml-4 hidden md:flex" />
+				<TopNavLinks />
 			</div>
 
 			<div className="min-w-0 flex-1" aria-hidden />

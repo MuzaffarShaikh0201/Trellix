@@ -7,7 +7,7 @@ const footerLinkClass =
 
 export function AppFooter() {
 	return (
-		<footer className="shrink-0 border-t border-primary/10 bg-tint px-4 py-1 sm:px-5 md:px-6">
+		<footer className="hidden shrink-0 border-t border-primary/10 bg-tint px-4 py-1 sm:block sm:px-5 md:px-6">
 			<div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
 				<p className="text-[10px] leading-tight text-text-secondary sm:text-xs">
 					&copy; Trellix&trade; {year}
