@@ -1,7 +1,12 @@
-import { MdFavorite, MdFavoriteBorder } from "react-icons/md";
+import { useNavigate } from "react-router";
+import { MdStar, MdStarBorder } from "react-icons/md";
 
 import { ProjectRepoBadge } from "@/components/project/ProjectRepoBadge";
 import { projectCardShellClass } from "@/components/project/project-card-shell";
+import {
+	parseWorkItemStats,
+	taskCompletionPercent,
+} from "@/lib/project/workItemStats";
 import { cn } from "@/lib/utils";
 import type { Project, ProjectStatus } from "@/types/project";
 
@@ -69,59 +74,6 @@ function getRepoDisplayName(url: string | null): string | null {
 	}
 }
 
-type WorkItemStats = {
-	low: number;
-	medium: number;
-	high: number;
-	completed: number;
-	total: number;
-};
-
-function asNumber(value: unknown): number | null {
-	if (typeof value === "number" && Number.isFinite(value)) return value;
-	if (typeof value === "string" && value.trim() !== "") {
-		const parsed = Number(value);
-		if (Number.isFinite(parsed)) return parsed;
-	}
-	return null;
-}
-
-function readCount(source: Record<string, unknown>, keys: string[]): number {
-	for (const key of keys) {
-		const value = asNumber(source[key]);
-		if (value != null) return Math.max(0, Math.round(value));
-	}
-	return 0;
-}
-
-function parseWorkItemStats(project: Project): WorkItemStats {
-	const raw = project as unknown as Record<string, unknown>;
-	const nestedWorkItems =
-		typeof raw.work_items === "object" && raw.work_items !== null
-			? (raw.work_items as Record<string, unknown>)
-			: null;
-	const nestedTaskCounts =
-		typeof raw.task_counts === "object" && raw.task_counts !== null
-			? (raw.task_counts as Record<string, unknown>)
-			: null;
-
-	const source = { ...raw, ...nestedTaskCounts, ...nestedWorkItems };
-
-	const low = readCount(source, ["low", "low_priority", "low_tasks"]);
-	const medium = readCount(source, ["medium", "medium_priority", "medium_tasks"]);
-	const high = readCount(source, ["high", "high_priority", "high_tasks"]);
-	const byPriorityTotal = low + medium + high;
-	const total = readCount(source, ["total", "total_tasks"]) || byPriorityTotal;
-
-	let completed = readCount(source, ["completed", "completed_tasks", "done_tasks"]);
-	if (completed === 0 && project.status === "COMPLETED" && total > 0) {
-		completed = total;
-	}
-	if (completed > total && total > 0) completed = total;
-
-	return { low, medium, high, completed, total };
-}
-
 export function ProjectCard({
 	project,
 	onToggleFavorite,
@@ -134,10 +86,7 @@ export function ProjectCard({
 	const normalizedTitle = normalizeInlineText(project.title);
 	const repoName = getRepoDisplayName(project.repo_url);
 	const workItems = parseWorkItemStats(project);
-	const progress =
-		workItems.total > 0
-			? Math.round((workItems.completed / workItems.total) * 100)
-			: 0;
+	const progress = taskCompletionPercent(workItems);
 	const lowPercent =
 		workItems.total > 0 ? (workItems.low / workItems.total) * 100 : 0;
 	const mediumPercent =
@@ -145,8 +94,26 @@ export function ProjectCard({
 	const highPercent =
 		workItems.total > 0 ? (workItems.high / workItems.total) * 100 : 0;
 
+	const navigate = useNavigate();
+
+	function openProject() {
+		navigate(`/projects/${project.id}`);
+	}
+
 	return (
-		<article className={cn("group", projectCardShellClass)}>
+		<article
+			role="link"
+			tabIndex={0}
+			aria-label={`Open project ${normalizedTitle}`}
+			onClick={openProject}
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault();
+					openProject();
+				}
+			}}
+			className={cn("group cursor-pointer", projectCardShellClass)}
+		>
 			<div className="flex min-h-0 flex-1 flex-col p-4 pb-3">
 				<div className="flex items-start justify-between gap-2">
 					<div className="min-w-0 flex-1">
@@ -175,10 +142,13 @@ export function ProjectCard({
 					<div className="flex shrink-0 items-center gap-0.5">
 						<button
 							type="button"
-							onClick={() => onToggleFavorite(project.id)}
+							onClick={(e) => {
+								e.stopPropagation();
+								onToggleFavorite(project.id);
+							}}
 							disabled={favoritePending}
 							className={cn(
-								"rounded-md p-1 text-text-secondary transition-colors hover:text-primary",
+								"rounded-md p-1 text-text-secondary transition-colors hover:text-yellow-500",
 								favoritePending && "cursor-wait opacity-60",
 							)}
 							aria-label={
@@ -188,9 +158,9 @@ export function ProjectCard({
 							}
 						>
 							{project.is_favorite ? (
-								<MdFavorite className="h-[18px] w-[18px] text-primary" aria-hidden />
+								<MdStar className="h-[18px] w-[18px] text-yellow-500" aria-hidden />
 							) : (
-								<MdFavoriteBorder className="h-[18px] w-[18px]" aria-hidden />
+								<MdStarBorder className="h-[18px] w-[18px]" aria-hidden />
 							)}
 						</button>
 					</div>

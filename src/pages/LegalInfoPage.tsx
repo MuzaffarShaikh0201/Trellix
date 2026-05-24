@@ -75,7 +75,7 @@ export function LegalInfoPage() {
 	return (
 		<div className="min-h-dvh bg-background-primary">
 			<header className="sticky top-0 z-10 border-b border-tint bg-background-secondary/95 backdrop-blur-sm">
-				<div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+				<div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
 					<Link
 						to="/"
 						className="flex items-center gap-2 text-text-primary"
@@ -114,7 +114,7 @@ export function LegalInfoPage() {
 				</div>
 			</header>
 
-			<main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+			<main className="mx-auto max-w-3xl px-5 py-10 sm:px-8">
 				<div className="mb-10 rounded-xl border border-tint bg-background-secondary p-6 shadow-sm sm:p-8">
 					<p className="text-xs font-medium uppercase tracking-wide text-text-secondary">
 						Legal

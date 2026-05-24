@@ -54,8 +54,9 @@ const PROJECT_TABS: { value: ProjectTab; label: string }[] = [
 	{ value: "ARCHIVED", label: "Archived" },
 ];
 
-/** Fixed page size until configurable in settings. */
-const PROJECTS_PAGE_SIZE = 10;
+const DEFAULT_PAGE_LIMIT = 10;
+
+const PAGE_LIMIT_OPTIONS = [6, 8, 10, 12, 16, 20] as const;
 
 export function ProjectsPage() {
 	const queryClient = useQueryClient();
@@ -64,6 +65,7 @@ export function ProjectsPage() {
 	const [sortBy, setSortBy] = useState<ProjectSortBy>("updated_at");
 	const [sortOrder, setSortOrder] = useState<ProjectSortOrder>("desc");
 	const [page, setPage] = useState(1);
+	const [pageLimit, setPageLimit] = useState<number>(DEFAULT_PAGE_LIMIT);
 	const [filterModalOpen, setFilterModalOpen] = useState(false);
 	const [sortModalOpen, setSortModalOpen] = useState(false);
 	const filterRootRef = useRef<HTMLDivElement>(null);
@@ -92,7 +94,7 @@ export function ProjectsPage() {
 				{
 					tab: activeTab,
 					page,
-					limit: PROJECTS_PAGE_SIZE,
+					limit: pageLimit,
 					status: effectiveStatusFilter,
 					is_archived: archivedOnly,
 					is_favorite: favoriteOnly,
@@ -103,7 +105,7 @@ export function ProjectsPage() {
 		[
 			activeTab,
 			page,
-			PROJECTS_PAGE_SIZE,
+			pageLimit,
 			effectiveStatusFilter,
 			archivedOnly,
 			favoriteOnly,
@@ -168,7 +170,7 @@ export function ProjectsPage() {
 		queryFn: () =>
 			fetchProjects({
 				page,
-				limit: PROJECTS_PAGE_SIZE,
+				limit: pageLimit,
 				status: effectiveStatusFilter,
 				is_archived: archivedOnly,
 				is_favorite: favoriteOnly,
@@ -218,8 +220,8 @@ export function ProjectsPage() {
 	const totalPages = Math.max(1, data?.total_pages ?? 1);
 	const currentPage = Math.min(page, totalPages);
 	const startItem =
-		totalItems === 0 ? 0 : (currentPage - 1) * PROJECTS_PAGE_SIZE + 1;
-	const endItem = Math.min(currentPage * PROJECTS_PAGE_SIZE, totalItems);
+		totalItems === 0 ? 0 : (currentPage - 1) * pageLimit + 1;
+	const endItem = Math.min(currentPage * pageLimit, totalItems);
 
 	const canGoPrev = currentPage > 1;
 	const canGoNext = currentPage < totalPages;
@@ -296,15 +298,18 @@ export function ProjectsPage() {
 
 	const showCreateCard = activeTab === "ALL";
 
+	const panelBarClass =
+		"shrink-0 border-primary/10 bg-tint px-4 py-1 text-[10px] leading-tight text-text-secondary md:px-6 sm:text-xs";
+
 	return (
-		<section className="space-y-5">
-			<header className="flex flex-wrap items-end justify-between gap-3">
-				<div>
-					<h1 className="text-2xl font-bold text-text-primary">Projects</h1>
-					<p className="mt-1 text-sm text-text-secondary">
-						Track software projects, repos, and delivery in one place.
-					</p>
-					<div className="mt-3 flex items-center gap-1 border-b border-primary/10">
+		<section className="flex min-h-0 flex-1 flex-col gap-4">
+			<header>
+				<h1 className="text-2xl font-bold text-text-primary">Projects</h1>
+				<p className="mt-1 text-sm text-text-secondary">
+					Track software projects, repos, and delivery in one place.
+				</p>
+				<div className="mt-3 flex items-center justify-between gap-3">
+					<div className="flex items-center gap-1">
 						{PROJECT_TABS.map((tab) => {
 							const isActive = activeTab === tab.value;
 							return (
@@ -316,7 +321,7 @@ export function ProjectsPage() {
 										setPage(1);
 									}}
 									className={cn(
-										"-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+										"border-b-2 px-3 py-2 text-sm font-medium transition-colors",
 										isActive
 											? "border-primary text-primary"
 											: "border-transparent text-text-secondary hover:text-text-primary",
@@ -328,13 +333,52 @@ export function ProjectsPage() {
 							);
 						})}
 					</div>
-				</div>
-				<div className="ml-auto flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
-					<div className="whitespace-nowrap text-xs text-text-secondary sm:text-sm">
-						{isPending
-							? "Loading projects..."
-							: `${totalItems} total`}
+					<div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+						<button
+							type="button"
+							aria-label="Create Project"
+							title="Create Project"
+							onClick={handleCreateProjectClick}
+							className={cn(
+								"flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-primary bg-primary text-white transition-colors hover:bg-blue-600",
+								"sm:hidden",
+							)}
+						>
+							<MdAdd className="h-5 w-5" aria-hidden />
+						</button>
+						<Button
+							title="Create Project"
+							imgSrc={<MdAdd className="h-5 w-5" />}
+							className="hidden sm:min-w-40 sm:block"
+							onClick={handleCreateProjectClick}
+						/>
 					</div>
+				</div>
+			</header>
+
+			<div
+				className={cn(
+					"flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-primary/10",
+					"bg-background-secondary",
+				)}
+			>
+				<div
+					className={cn(
+						panelBarClass,
+						"relative z-10 flex flex-wrap items-center justify-between gap-3 border-b shadow-panel-below",
+					)}
+				>
+					<div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+						<span className="whitespace-nowrap tabular-nums">
+							{isPending
+								? "Loading projects..."
+								: `${totalItems} total`}
+						</span>
+						{isRefetching && !isPending ? (
+							<span>Refreshing…</span>
+						) : null}
+					</div>
+					<div className="ml-auto flex shrink-0 items-center justify-end gap-1">
 					<div ref={filterRootRef} className="relative">
 						<button
 							type="button"
@@ -342,14 +386,14 @@ export function ProjectsPage() {
 								setFilterModalOpen((v) => !v);
 								setSortModalOpen(false);
 							}}
-							className="flex h-9 w-9 cursor-pointer items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
+							className="flex h-6 w-6 cursor-pointer items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
 							title="Open filters"
 							aria-label="Open filters"
 							aria-haspopup="dialog"
 							aria-expanded={filterModalOpen}
 							aria-controls={filterModalOpen ? `${controlsId}-filter-modal` : undefined}
 						>
-							<MdFilterList className="h-5 w-5" aria-hidden />
+							<MdFilterList className="h-4 w-4" aria-hidden />
 						</button>
 						{filterModalOpen ? (
 							<div
@@ -398,14 +442,14 @@ export function ProjectsPage() {
 								setSortModalOpen((v) => !v);
 								setFilterModalOpen(false);
 							}}
-							className="flex h-9 w-9 cursor-pointer items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
+							className="flex h-6 w-6 cursor-pointer items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
 							title="Open sorting options"
 							aria-label="Open sorting options"
 							aria-haspopup="dialog"
 							aria-expanded={sortModalOpen}
 							aria-controls={sortModalOpen ? `${controlsId}-sort-modal` : undefined}
 						>
-							<MdSort className="h-5 w-5" aria-hidden />
+							<MdSort className="h-4 w-4" aria-hidden />
 						</button>
 						{sortModalOpen ? (
 							<div
@@ -466,53 +510,34 @@ export function ProjectsPage() {
 							</div>
 						) : null}
 					</div>
-					<div className="w-auto">
-						<button
-							type="button"
-							aria-label="Create Project"
-							title="Create Project"
-							onClick={handleCreateProjectClick}
-							className={cn(
-								"flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-primary bg-primary text-white transition-colors hover:bg-blue-600",
-								"sm:hidden",
-							)}
-						>
-							<MdAdd className="h-5 w-5" aria-hidden />
-						</button>
-						<Button
-							title="Create Project"
-							imgSrc={<MdAdd className="h-5 w-5" />}
-							className="hidden sm:min-w-40 sm:block"
-							onClick={handleCreateProjectClick}
-						/>
 					</div>
 				</div>
-			</header>
 
-			{isError ? (
-				<div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
-					<p className="text-sm font-medium text-red-600 dark:text-red-400">
-						Could not load projects
-					</p>
-					<p className="mt-1 text-sm text-text-secondary">
-						{getRequestErrorMessage(
-							error,
-							"Something went wrong while loading projects.",
-						)}
-					</p>
-					<button
-						type="button"
-						onClick={() => void refetch()}
-						className="mt-3 rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
-					>
-						Try again
-					</button>
-				</div>
-			) : null}
-
-			<div className="grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-0 lg:grid-cols-4 xl:grid-cols-5">
+				<div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+					{isError ? (
+						<div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
+							<p className="text-sm font-medium text-red-600 dark:text-red-400">
+								Could not load projects
+							</p>
+							<p className="mt-1 text-sm text-text-secondary">
+								{getRequestErrorMessage(
+									error,
+									"Something went wrong while loading projects.",
+								)}
+							</p>
+							<button
+								type="button"
+								onClick={() => void refetch()}
+								className="mt-3 rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+							>
+								Try again
+							</button>
+						</div>
+					) : (
+						<>
+							<div className="grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-0 lg:grid-cols-4 xl:grid-cols-5">
 				{isPending
-					? Array.from({ length: PROJECTS_PAGE_SIZE }, (_, idx) => (
+					? Array.from({ length: pageLimit }, (_, idx) => (
 							<ProjectCardGridCell
 								key={`project-skeleton-${idx}`}
 								index={idx}
@@ -548,31 +573,41 @@ export function ProjectsPage() {
 								) : null}
 							</>
 						)}
+							</div>
+
+							{!isPending && projects.length === 0 ? (
+								<p className="mt-4 text-sm text-text-secondary">
+									{emptyStateMessage}
+								</p>
+							) : null}
+						</>
+					)}
+				</div>
+
+				{!isError && !isPending ? (
+					<Pagination
+						className={cn(
+							panelBarClass,
+							"relative z-10 border-t shadow-panel-above",
+						)}
+						startItem={startItem}
+						endItem={endItem}
+						totalItems={totalItems}
+						canGoPrev={canGoPrev}
+						canGoNext={canGoNext}
+						pageLimit={pageLimit}
+						pageLimitOptions={[...PAGE_LIMIT_OPTIONS]}
+						onPageLimitChange={(limit) => {
+							setPageLimit(limit);
+							setPage(1);
+						}}
+						onFirstPage={() => setPage(1)}
+						onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
+						onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
+						onLastPage={() => setPage(totalPages)}
+					/>
+				) : null}
 			</div>
-
-			{!isPending && !isError && projects.length === 0 ? (
-				<p className="text-sm text-text-secondary">
-					{emptyStateMessage}
-				</p>
-			) : null}
-
-			{isRefetching && !isPending ? (
-				<p className="text-xs text-text-secondary">Refreshing projects...</p>
-			) : null}
-
-			{!isError && totalItems > 0 ? (
-				<Pagination
-					startItem={startItem}
-					endItem={endItem}
-					totalItems={totalItems}
-					canGoPrev={canGoPrev}
-					canGoNext={canGoNext}
-					onFirstPage={() => setPage(1)}
-					onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
-					onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
-					onLastPage={() => setPage(totalPages)}
-				/>
-			) : null}
 
 			<CreateProjectModal
 				open={createModalOpen}

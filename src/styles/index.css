@@ -83,3 +83,21 @@ body {
 	scrollbar-width: thin;
 	scrollbar-color: var(--text-secondary) var(--background-secondary);
 }
+
+@layer utilities {
+	.shadow-panel-below {
+		box-shadow: 0 4px 8px -4px rgb(15 23 42 / 0.07);
+	}
+
+	[data-theme="dark"] .shadow-panel-below {
+		box-shadow: 0 4px 10px -4px rgb(0 0 0 / 0.28);
+	}
+
+	.shadow-panel-above {
+		box-shadow: 0 -4px 8px -4px rgb(15 23 42 / 0.07);
+	}
+
+	[data-theme="dark"] .shadow-panel-above {
+		box-shadow: 0 -4px 10px -4px rgb(0 0 0 / 0.28);
+	}
+}

@@ -17,7 +17,7 @@ export function ProjectCardSkeleton() {
 					</div>
 					<div className="h-7 w-7 shrink-0 rounded-md bg-tint" />
 				</div>
-				<div className="mt-4 inline-flex h-6 w-fit max-w-[70%] items-center gap-1.5 rounded-full bg-slate-800/60 px-2.5 dark:bg-[#252b3a]/80">
+				<div className="mt-4 inline-flex h-6 w-fit max-w-[70%] items-center gap-1.5 rounded-full bg-tint px-2.5">
 					<div className="size-3.5 shrink-0 rounded-full bg-tint/40" />
 					<div className="h-3 w-20 rounded-full bg-tint/40" />
 				</div>

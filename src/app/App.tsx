@@ -4,6 +4,7 @@ import { ProtectedRoute } from "@/app/ProtectedRoute";
 import { AppShell } from "@/components/layout/AppShell";
 import { AuthPage } from "@/pages/AuthPage";
 import { DashboardPage } from "@/pages/DashboardPage";
+import { ProjectPage } from "@/pages/ProjectPage";
 import { ProjectsPage } from "@/pages/ProjectsPage";
 import { SectionPlaceholderPage } from "@/pages/SectionPlaceholderPage";
 import {
@@ -27,10 +28,8 @@ function App() {
 				}
 			>
 				<Route index element={<DashboardPage />} />
-				<Route
-					path="projects"
-					element={<ProjectsPage />}
-				/>
+				<Route path="projects" element={<ProjectsPage />} />
+				<Route path="projects/:projectId" element={<ProjectPage />} />
 				<Route
 					path="calendar"
 					element={<SectionPlaceholderPage title="Calendar" />}

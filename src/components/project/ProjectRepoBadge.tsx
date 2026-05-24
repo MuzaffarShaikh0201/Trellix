@@ -4,8 +4,7 @@ import { cn } from "@/lib/utils";
 
 const repoPillClass = cn(
 	"mt-4 inline-flex w-fit max-w-[70%] min-w-0 items-center gap-1.5 overflow-hidden rounded-full px-2.5 py-1",
-	"bg-slate-800 text-xs font-medium text-white",
-	"dark:bg-[#252b3a]",
+	"bg-tint text-xs font-medium text-text-primary",
 );
 
 type ProjectRepoBadgeProps = {
@@ -31,6 +30,7 @@ export function ProjectRepoBadge({ repoUrl, displayName }: ProjectRepoBadgeProps
 				href={href}
 				target="_blank"
 				rel="noopener noreferrer"
+				onClick={(e) => e.stopPropagation()}
 				className={cn(
 					repoPillClass,
 					"cursor-pointer transition-opacity hover:opacity-90",

@@ -19,7 +19,7 @@ export function CreateProjectCard({ onCreate }: { onCreate: () => void }) {
 						aria-hidden
 					/>
 					<span
-						className="absolute -right-0.5 -top-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm"
+						className="absolute -right-0.5 -top-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white shadow-sm"
 						aria-hidden
 					>
 						<MdAdd className="h-4 w-4" />

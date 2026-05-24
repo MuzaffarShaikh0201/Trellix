@@ -57,8 +57,8 @@ export function AuthPage() {
 				<div
 					className={
 						isAuthForm
-							? "mx-auto flex h-full min-h-dvh w-full max-w-md flex-1 flex-col px-4 py-6 lg:min-h-0 lg:px-6 lg:py-10"
-							: "mx-auto w-full max-w-md px-6 py-10"
+							? "mx-auto flex h-full min-h-dvh w-full max-w-md flex-1 flex-col px-5 py-6 lg:min-h-0 lg:px-8 lg:py-10"
+							: "mx-auto w-full max-w-md px-6 py-10 sm:px-8"
 					}
 				>
 					{isAuthForm ? (

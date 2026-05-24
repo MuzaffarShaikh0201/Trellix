@@ -15,7 +15,7 @@ function HttpErrorShell({ code, title, description }: HttpErrorShellProps) {
 	return (
 		<div className="min-h-dvh bg-background-primary">
 			<header className="sticky top-0 z-10 border-b border-tint bg-background-secondary/95 backdrop-blur-sm">
-				<div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+				<div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
 					<Link
 						to="/"
 						className="flex items-center gap-2 text-text-primary"
@@ -35,7 +35,7 @@ function HttpErrorShell({ code, title, description }: HttpErrorShellProps) {
 				</div>
 			</header>
 
-			<main className="mx-auto flex min-h-[calc(100dvh-4.5rem)] max-w-lg flex-col items-center justify-center px-4 py-16 text-center">
+			<main className="mx-auto flex min-h-[calc(100dvh-4.5rem)] max-w-lg flex-col items-center justify-center px-5 py-16 text-center sm:px-8">
 				<p
 					className="text-7xl font-bold tabular-nums text-primary sm:text-8xl"
 					aria-hidden="true"
