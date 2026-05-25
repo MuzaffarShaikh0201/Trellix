@@ -7,16 +7,9 @@ import {
 	parseWorkItemStats,
 	taskCompletionPercent,
 } from "@/lib/project/workItemStats";
+import { ProjectStatusChip } from "@/components/project/ProjectStatusChip";
 import { cn } from "@/lib/utils";
-import type { Project, ProjectStatus } from "@/types/project";
-
-const statusClassMap: Record<ProjectStatus, string> = {
-	PLANNING: "border-violet-500/50 text-violet-500",
-	IN_PROGRESS: "border-primary/50 text-primary",
-	ON_HOLD: "border-violet-400/50 text-violet-400",
-	COMPLETED: "border-emerald-500/50 text-emerald-500",
-	ABANDONED: "border-red-500/50 text-red-500",
-};
+import type { Project } from "@/types/project";
 
 function formatDate(value: string | null): string {
 	if (!value) return "—";
@@ -31,12 +24,6 @@ function formatDate(value: string | null): string {
 	}
 }
 
-function prettifyToken(value: string) {
-	return value
-		.toLowerCase()
-		.replace(/_/g, " ")
-		.replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 const PROJECT_TITLE_MAX_CHARS = 48;
 
@@ -124,14 +111,7 @@ export function ProjectCard({
 							{truncateProjectTitle(project.title)}
 						</h3>
 						<div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-							<span
-								className={cn(
-									"inline-flex rounded border px-2 py-0.5 text-[11px] font-medium",
-									statusClassMap[project.status],
-								)}
-							>
-								{prettifyToken(project.status)}
-							</span>
+							<ProjectStatusChip status={project.status} />
 							{project.is_archived ? (
 								<span className="inline-flex rounded border border-slate-500/40 px-2 py-0.5 text-[11px] font-medium text-slate-500">
 									Archived

@@ -216,9 +216,9 @@ export function SignupForm() {
 						loading={loading}
 						loader={
 							<CustomLoader
-								size={24}
+								size={16}
 								color="#ffffff"
-								containerStyle={{ width: 24, height: 24 }}
+								containerStyle={{ width: 16, height: 16 }}
 								aria-label="Creating account"
 							/>
 						}
@@ -226,7 +226,7 @@ export function SignupForm() {
 					<Button
 						title="Sign Up with"
 						imgSrc={googleLogo}
-						fill={false}
+						variant="secondary"
 						type="button"
 						onClick={handleGoogleSignUp}
 						disabled={loading}

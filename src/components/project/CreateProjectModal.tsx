@@ -4,6 +4,7 @@ import { MdClose } from "react-icons/md";
 import Button from "@/components/ui/Button";
 import { CustomLoader } from "@/components/ui/CustomLoader";
 import FormField from "@/components/ui/FormField";
+import { buttonSecondaryClass } from "@/components/ui/buttonStyles";
 import { cn } from "@/lib/utils";
 
 type CreateProjectModalProps = {
@@ -134,30 +135,30 @@ export function CreateProjectModal({
 						</div>
 					</div>
 
-					<div className="flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:justify-end">
+					<div className="flex flex-wrap items-center justify-end gap-2">
 						<button
 							type="button"
 							onClick={onClose}
-							className="rounded-lg bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+							className={buttonSecondaryClass()}
 						>
 							Cancel
 						</button>
-						<div className="w-full sm:w-40">
-							<Button
-								type="submit"
-								title="Create Project"
-								disabled={submitting}
-								loading={submitting}
-								loader={
-									<CustomLoader
-										size={24}
-										color="#ffffff"
-										containerStyle={{ width: 24, height: 24 }}
-										aria-label="Creating project"
-									/>
-								}
-							/>
-						</div>
+						<Button
+							type="submit"
+							title="Create Project"
+							variant="primary"
+							className="w-auto"
+							disabled={submitting}
+							loading={submitting}
+							loader={
+								<CustomLoader
+									size={16}
+									color="#ffffff"
+									containerStyle={{ width: 16, height: 16 }}
+									aria-label="Creating project"
+								/>
+							}
+						/>
 					</div>
 				</form>
 			</div>

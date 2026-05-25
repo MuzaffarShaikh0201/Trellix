@@ -120,9 +120,9 @@ export function LoginForm() {
 						loading={loading}
 						loader={
 							<CustomLoader
-								size={24}
+								size={16}
 								color="#ffffff"
-								containerStyle={{ width: 24, height: 24 }}
+								containerStyle={{ width: 16, height: 16 }}
 								aria-label="Signing in"
 							/>
 						}
@@ -130,7 +130,7 @@ export function LoginForm() {
 					<Button
 						title="Login with "
 						imgSrc={googleLogo}
-						fill={false}
+						variant="secondary"
 						type="button"
 						onClick={handleGoogleLogin}
 						disabled={loading}

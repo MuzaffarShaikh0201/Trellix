@@ -1,22 +1,18 @@
-import { useState, type ReactNode } from "react";
-
-import { useQuery } from "@tanstack/react-query";
-
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
-
-import { MdArrowBack } from "react-icons/md";
-
-
+import { MdArrowBack, MdStar, MdStarBorder } from "react-icons/md";
 
 import { ProjectHeaderStats } from "@/components/project/ProjectHeaderStats";
-
-import { fetchProject } from "@/lib/api/projects";
-
+import { ProjectPrimaryDetails } from "@/components/project/ProjectPrimaryDetails";
+import { ProjectTimestampsMeta } from "@/components/project/ProjectTimestampsMeta";
+import { fetchProject, toggleProjectFavorite } from "@/lib/api/projects";
 import { getRequestErrorMessage } from "@/lib/getRequestErrorMessage";
-
+import { buttonSecondaryClass } from "@/components/ui/buttonStyles";
 import { cn } from "@/lib/utils";
+import { showAlert } from "@/services/alertService";
 
-import type { Project, ProjectStatus } from "@/types/project";
+import type { Project } from "@/types/project";
 
 
 
@@ -38,114 +34,54 @@ const PROJECT_DETAIL_TABS: { value: ProjectDetailTab; label: string }[] = [
 
 
 
-const statusClassMap: Record<ProjectStatus, string> = {
-
-	PLANNING: "border-violet-500/50 text-violet-500",
-
-	IN_PROGRESS: "border-primary/50 text-primary",
-
-	ON_HOLD: "border-violet-400/50 text-violet-400",
-
-	COMPLETED: "border-emerald-500/50 text-emerald-500",
-
-	ABANDONED: "border-red-500/50 text-red-500",
-
-};
-
-
-
-function formatCreatedAt(value: string): string {
-
-	const d = new Date(value);
-
-	if (Number.isNaN(d.getTime())) return value;
-
-	const day = String(d.getDate()).padStart(2, "0");
-
-	const month = d.toLocaleString(undefined, { month: "short" });
-
-	const year = d.getFullYear();
-
-	const time = d.toLocaleString(undefined, {
-
-		hour: "numeric",
-
-		minute: "2-digit",
-
-		hour12: true,
-
-	});
-
-	return `${day}/${month}/${year} ${time}`;
-
-}
-
-
-
-function formatDate(value: string | null): string {
-
-	if (!value) return "—";
-
-	const d = new Date(value);
-
-	if (Number.isNaN(d.getTime())) return value;
-
-	const day = String(d.getDate()).padStart(2, "0");
-
-	const month = d.toLocaleString(undefined, { month: "short" });
-
-	const year = d.getFullYear();
-
-	return `${day}/${month}/${year}`;
-
-}
-
-
-
-function prettifyToken(value: string) {
-
-	return value
-
-		.toLowerCase()
-
-		.replace(/_/g, " ")
-
-		.replace(/\b\w/g, (c) => c.toUpperCase());
-
-}
-
-
-
 export function ProjectPage() {
-
+	const queryClient = useQueryClient();
 	const { projectId } = useParams<{ projectId: string }>();
-
 	const [activeTab, setActiveTab] = useState<ProjectDetailTab>("DETAILS");
 
-
+	const projectQueryKey = ["project", projectId] as const;
 
 	const {
-
 		data: project,
-
 		isPending,
-
 		isError,
-
 		error,
-
 		refetch,
-
 		isRefetching,
-
 	} = useQuery({
-
-		queryKey: ["project", projectId],
-
+		queryKey: projectQueryKey,
 		queryFn: () => fetchProject(projectId!),
-
 		enabled: Boolean(projectId),
+	});
 
+	const favoriteMutation = useMutation({
+		mutationFn: toggleProjectFavorite,
+		onMutate: async () => {
+			await queryClient.cancelQueries({ queryKey: projectQueryKey });
+			const previous = queryClient.getQueryData<Project>(projectQueryKey);
+			queryClient.setQueryData<Project>(projectQueryKey, (current) => {
+				if (!current) return current;
+				return { ...current, is_favorite: !current.is_favorite };
+			});
+			return { previous };
+		},
+		onError: (err, _projectId, context) => {
+			if (context?.previous) {
+				queryClient.setQueryData(projectQueryKey, context.previous);
+			}
+			showAlert(
+				"Could not update favorite",
+				"error",
+				getRequestErrorMessage(
+					err,
+					"Something went wrong while updating favorite status.",
+				),
+			);
+		},
+		onSettled: async () => {
+			await queryClient.invalidateQueries({ queryKey: projectQueryKey });
+			await queryClient.invalidateQueries({ queryKey: ["projects"] });
+		},
 	});
 
 
@@ -155,8 +91,7 @@ export function ProjectPage() {
 		return (
 
 			<section className="space-y-4">
-
-				<BackToProjectsLink />
+				<ProjectPageToolbar backOnly />
 
 				<p className="text-sm text-text-secondary">Project not found.</p>
 
@@ -173,12 +108,16 @@ export function ProjectPage() {
 
 
 	return (
-
-		<section>
-
-			<BackToProjectsLink />
-
-
+		<section className="flex min-h-0 flex-1 flex-col">
+			<ProjectPageToolbar
+				isFavorite={project?.is_favorite ?? false}
+				favoritePending={favoriteMutation.isPending}
+				favoriteDisabled={isPending || !project}
+				showFavorite={!isError}
+				onToggleFavorite={() => {
+					if (projectId) favoriteMutation.mutate(projectId);
+				}}
+			/>
 
 			{isPending ? (
 
@@ -191,11 +130,8 @@ export function ProjectPage() {
 				>
 
 					<div className="min-w-0 space-y-2">
-
 						<div className="h-8 w-[min(100%,20rem)] animate-pulse rounded-lg bg-tint" />
-
-						<div className="h-4 w-52 animate-pulse rounded bg-tint" />
-
+						<div className="h-4 w-full max-w-xl animate-pulse rounded bg-tint" />
 					</div>
 
 					<div className="hidden gap-3 md:flex sm:gap-4">
@@ -249,11 +185,8 @@ export function ProjectPage() {
 						disabled={isRefetching}
 
 						className={cn(
-
-							"rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors",
-
-							"hover:bg-primary/20 disabled:cursor-wait disabled:opacity-60",
-
+							buttonSecondaryClass(),
+							"disabled:cursor-wait",
 						)}
 
 					>
@@ -268,32 +201,11 @@ export function ProjectPage() {
 
 				<div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 
-					<div className="min-w-0 space-y-2">
-
+					<div className="min-w-0">
 						<h1 className="text-2xl font-bold text-text-primary">
-
 							{project.title}
-
 						</h1>
-
-						<p className="text-sm text-text-secondary">
-
-							Created on{" "}
-
-							<time
-
-								dateTime={project.created_at}
-
-								className="text-text-primary"
-
-							>
-
-								{formatCreatedAt(project.created_at)}
-
-							</time>
-
-						</p>
-
+						<ProjectTimestampsMeta createdAt={project.created_at} />
 					</div>
 
 					<ProjectHeaderStats project={project} />
@@ -356,26 +268,54 @@ export function ProjectPage() {
 
 
 
-					<div className="mt-4">
-
-						{isPending ? (
-
-							<div className="space-y-3" aria-hidden>
-
-								<div className="h-4 w-full max-w-md animate-pulse rounded bg-tint" />
-
-								<div className="h-4 w-full max-w-sm animate-pulse rounded bg-tint" />
-
-								<div className="h-4 w-full max-w-lg animate-pulse rounded bg-tint" />
-
-							</div>
-
-						) : project ? (
-
-							<ProjectTabPanel tab={activeTab} project={project} />
-
-						) : null}
-
+					<div
+						className={cn(
+							"mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-primary/10",
+							"bg-background-secondary",
+						)}
+					>
+						<div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+							{isPending ? (
+								<div className="w-full space-y-6" aria-hidden>
+									<div className="w-full">
+										<div className="flex flex-col gap-4 md:flex-row md:gap-4">
+											<div className="space-y-2 md:w-52">
+												<div className="h-3 w-16 animate-pulse rounded bg-tint" />
+												<div className="h-10 w-full animate-pulse rounded-lg bg-tint" />
+											</div>
+											<div className="space-y-2 md:w-52">
+												<div className="h-3 w-24 animate-pulse rounded bg-tint" />
+												<div className="h-10 w-full animate-pulse rounded-lg bg-tint" />
+											</div>
+										</div>
+									</div>
+									<div className="w-full space-y-6">
+										<div className="space-y-4 border-t border-primary/10 pt-6">
+											<div className="h-4 w-28 animate-pulse rounded bg-tint" />
+											<div className="w-full space-y-4 md:w-fit">
+												<div className="h-20 w-full animate-pulse rounded-lg bg-tint" />
+												<div className="flex flex-col gap-4 md:flex-row md:gap-4">
+													<div className="h-10 w-full animate-pulse rounded-lg bg-tint md:w-[28rem]" />
+													<div className="h-10 w-full animate-pulse rounded-lg bg-tint md:w-52" />
+													<div className="h-10 w-full animate-pulse rounded-lg bg-tint md:w-52" />
+												</div>
+											</div>
+										</div>
+										<div className="space-y-5 border-t border-primary/10 pt-6">
+											<div className="h-4 w-16 animate-pulse rounded bg-tint" />
+											{Array.from({ length: 3 }, (_, i) => (
+												<div key={i} className="space-y-2">
+													<div className="h-8 w-full animate-pulse rounded bg-tint" />
+													<div className="h-8 w-28 animate-pulse rounded-lg bg-tint" />
+												</div>
+											))}
+										</div>
+									</div>
+								</div>
+							) : project ? (
+								<ProjectTabPanel tab={activeTab} project={project} />
+							) : null}
+						</div>
 					</div>
 
 				</>
@@ -440,190 +380,78 @@ function ProjectTabPanel({ tab, project }: ProjectTabPanelProps) {
 
 function TabPlaceholder({ message }: { message: string }) {
 
-	return <p className="text-sm text-text-secondary">{message}</p>;
+	return (
+		<p className="w-full text-sm text-text-secondary">{message}</p>
+	);
 
 }
 
 
 
 function ProjectDetailsPanel({ project }: { project: Project }) {
+	return <ProjectPrimaryDetails project={project} />;
+}
 
+
+
+type ProjectPageToolbarProps = {
+	backOnly?: boolean;
+	isFavorite?: boolean;
+	favoritePending?: boolean;
+	favoriteDisabled?: boolean;
+	showFavorite?: boolean;
+	onToggleFavorite?: () => void;
+};
+
+function ProjectPageToolbar({
+	backOnly = false,
+	isFavorite = false,
+	favoritePending = false,
+	favoriteDisabled = false,
+	showFavorite = true,
+	onToggleFavorite,
+}: ProjectPageToolbarProps) {
 	return (
+		<div className="flex items-center justify-between gap-3">
+			<Link
+				to="/projects"
+				className={cn(
+					"inline-flex min-w-0 items-center gap-1 text-sm font-medium text-text-secondary transition-colors",
+					"hover:text-primary",
+				)}
+			>
+				<MdArrowBack className="h-[18px] w-[18px] shrink-0" aria-hidden />
+				Back to Projects
+			</Link>
 
-		<div className="space-y-5 text-sm">
-
-			<div>
-
-				<h2 className="text-xs font-medium uppercase tracking-wide text-text-secondary">
-
-					Status
-
-				</h2>
-
-				<span
-
+			{!backOnly && showFavorite ? (
+				<button
+					type="button"
+					onClick={onToggleFavorite}
+					disabled={
+						favoritePending || favoriteDisabled || !onToggleFavorite
+					}
 					className={cn(
-
-						"mt-1.5 inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium",
-
-						statusClassMap[project.status],
-
+						"shrink-0 rounded-md p-1 text-text-secondary transition-colors hover:text-yellow-500",
+						(favoritePending || favoriteDisabled || !onToggleFavorite) &&
+							"cursor-not-allowed opacity-60",
 					)}
-
+					aria-label={
+						isFavorite ? "Remove from favorites" : "Add to favorites"
+					}
 				>
-
-					{prettifyToken(project.status)}
-
-				</span>
-
-			</div>
-
-
-
-			{project.description ? (
-
-				<div>
-
-					<h2 className="text-xs font-medium uppercase tracking-wide text-text-secondary">
-
-						Description
-
-					</h2>
-
-					<p className="mt-1.5 whitespace-pre-wrap text-text-primary">
-
-						{project.description}
-
-					</p>
-
-				</div>
-
-			) : null}
-
-
-
-			<dl className="grid gap-4 sm:grid-cols-2">
-
-				<DetailField label="Repository">
-
-					{project.repo_url ? (
-
-						<a
-
-							href={project.repo_url}
-
-							target="_blank"
-
-							rel="noopener noreferrer"
-
-							className="text-primary transition-colors hover:text-primary/80"
-
-						>
-
-							{project.repo_url}
-
-						</a>
-
+					{isFavorite ? (
+						<MdStar
+							className="h-[18px] w-[18px] text-yellow-500"
+							aria-hidden
+						/>
 					) : (
-
-						<span className="text-text-secondary">No repository linked</span>
-
+						<MdStarBorder className="h-[18px] w-[18px]" aria-hidden />
 					)}
-
-				</DetailField>
-
-				<DetailField label="Start date">
-
-					{formatDate(project.start_date)}
-
-				</DetailField>
-
-				<DetailField label="End date">
-
-					{formatDate(project.end_date)}
-
-				</DetailField>
-
-				<DetailField label="Last updated">
-
-					<time dateTime={project.updated_at} className="text-text-primary">
-
-						{formatCreatedAt(project.updated_at)}
-
-					</time>
-
-				</DetailField>
-
-			</dl>
-
+				</button>
+			) : null}
 		</div>
-
 	);
-
-}
-
-
-
-function DetailField({
-
-	label,
-
-	children,
-
-}: {
-
-	label: string;
-
-	children: ReactNode;
-
-}) {
-
-	return (
-
-		<div>
-
-			<dt className="text-xs font-medium uppercase tracking-wide text-text-secondary">
-
-				{label}
-
-			</dt>
-
-			<dd className="mt-1.5 text-text-primary">{children}</dd>
-
-		</div>
-
-	);
-
-}
-
-
-
-function BackToProjectsLink() {
-
-	return (
-
-		<Link
-
-			to="/projects"
-
-			className={cn(
-
-				"inline-flex items-center gap-1 text-sm font-medium text-text-secondary transition-colors",
-
-				"hover:text-primary",
-
-			)}
-
-		>
-
-			<MdArrowBack className="h-[18px] w-[18px] shrink-0" aria-hidden />
-
-			Back to Projects
-
-		</Link>
-
-	);
-
 }
 
 

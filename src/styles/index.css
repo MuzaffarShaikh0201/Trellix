@@ -100,4 +100,11 @@ body {
 	[data-theme="dark"] .shadow-panel-above {
 		box-shadow: 0 -4px 10px -4px rgb(0 0 0 / 0.28);
 	}
+
+	/* Native date/datetime picker icon — hidden when a custom icon is shown. */
+	.input-hide-date-picker::-webkit-calendar-picker-indicator {
+		display: none;
+		-webkit-appearance: none;
+		appearance: none;
+	}
 }

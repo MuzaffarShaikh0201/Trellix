@@ -4,6 +4,10 @@ import {
 	type ReactNode,
 } from "react";
 
+import {
+	buttonPrimaryClass,
+	buttonSecondaryClass,
+} from "@/components/ui/buttonStyles";
 import { cn } from "@/lib/utils";
 
 export type ButtonProps = Omit<
@@ -11,16 +15,26 @@ export type ButtonProps = Omit<
 	"children"
 > & {
 	title: string;
+	/** @deprecated Use `variant` instead. */
 	fill?: boolean;
+	variant?: "primary" | "secondary";
 	imgSrc?: string | ReactNode;
-	/** When true with {@link loader}, only the loader is shown, centered. */
 	loading?: boolean;
 	loader?: ReactNode;
 };
 
+function resolveVariant(
+	variant: ButtonProps["variant"],
+	fill: boolean,
+): "primary" | "secondary" {
+	if (variant === "primary" || variant === "secondary") return variant;
+	return fill ? "primary" : "secondary";
+}
+
 export default function Button({
 	title,
 	fill = true,
+	variant,
 	type = "button",
 	imgSrc,
 	disabled = false,
@@ -29,12 +43,13 @@ export default function Button({
 	className,
 	...props
 }: ButtonProps) {
+	const resolvedVariant = resolveVariant(variant, fill);
 	const showLoaderOnly = Boolean(loading && loader);
 	const isDisabled = disabled || loading;
 
 	const visual =
 		typeof imgSrc === "string" && imgSrc.length > 0 ? (
-			<img src={imgSrc} alt="" className="h-6 w-auto shrink-0" />
+			<img src={imgSrc} alt="" className="h-4 w-auto shrink-0" />
 		) : isValidElement(imgSrc) ? (
 			imgSrc
 		) : null;
@@ -45,33 +60,24 @@ export default function Button({
 			disabled={isDisabled}
 			aria-busy={showLoaderOnly || undefined}
 			className={cn(
-				"w-full cursor-pointer rounded-md border-2 border-primary p-0.5 text-sm font-bold transition-colors",
-				fill
-					? "bg-primary text-white active:bg-blue-600"
-					: "bg-transparent text-text-primary active:bg-primary",
-				isDisabled && "pointer-events-none",
-				isDisabled && !showLoaderOnly && "opacity-50",
+				"w-full",
+				resolvedVariant === "primary"
+					? buttonPrimaryClass()
+					: buttonSecondaryClass(),
 				className,
 			)}
 			{...props}
 		>
-			<div
-				className={cn(
-					"flex min-h-9 items-center justify-center gap-2",
-					showLoaderOnly && "gap-0",
-				)}
-			>
-				{showLoaderOnly ? (
-					<span className="flex h-6 w-full items-center justify-center">
-						{loader}
-					</span>
-				) : (
-					<>
-						<span>{title}</span>
-						{visual}
-					</>
-				)}
-			</div>
+			{showLoaderOnly ? (
+				<span className="flex items-center justify-center" aria-hidden>
+					{loader}
+				</span>
+			) : (
+				<>
+					<span>{title}</span>
+					{visual}
+				</>
+			)}
 		</button>
 	);
 }

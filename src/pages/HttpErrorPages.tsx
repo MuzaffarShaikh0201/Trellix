@@ -48,17 +48,19 @@ function HttpErrorShell({ code, title, description }: HttpErrorShellProps) {
 				<p className="mt-3 max-w-md text-sm leading-relaxed text-text-secondary sm:text-base">
 					{description}
 				</p>
-				<div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+				<div className="mt-10 flex flex-wrap items-center justify-center gap-2">
 					<Button
 						title="Go back"
-						fill={false}
+						variant="secondary"
 						type="button"
+						className="w-auto"
 						onClick={() => navigate(-1)}
 					/>
 					<Button
 						title="Home"
-						fill={true}
+						variant="primary"
 						type="button"
+						className="w-auto"
 						onClick={() => navigate("/")}
 					/>
 				</div>

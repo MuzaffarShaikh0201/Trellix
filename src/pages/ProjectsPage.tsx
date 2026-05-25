@@ -17,6 +17,10 @@ import { ProjectCard } from "@/components/project/ProjectCard";
 import { ProjectCardGridCell } from "@/components/project/ProjectCardGridCell";
 import { ProjectCardSkeleton } from "@/components/project/ProjectCardSkeleton";
 import Button from "@/components/ui/Button";
+import {
+	buttonPrimaryClass,
+	buttonSecondaryClass,
+} from "@/components/ui/buttonStyles";
 import { Pagination } from "@/components/ui/Pagination";
 import { createProject, fetchProjects, toggleProjectFavorite } from "@/lib/api/projects";
 import { getRequestErrorMessage } from "@/lib/getRequestErrorMessage";
@@ -340,16 +344,16 @@ export function ProjectsPage() {
 							title="Create Project"
 							onClick={handleCreateProjectClick}
 							className={cn(
-								"flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-primary bg-primary text-white transition-colors hover:bg-blue-600",
-								"sm:hidden",
+								buttonPrimaryClass("h-8 w-8 shrink-0 p-0 sm:hidden"),
 							)}
 						>
-							<MdAdd className="h-5 w-5" aria-hidden />
+							<MdAdd className="h-4 w-4" aria-hidden />
 						</button>
 						<Button
 							title="Create Project"
-							imgSrc={<MdAdd className="h-5 w-5" />}
-							className="hidden sm:min-w-40 sm:block"
+							variant="primary"
+							imgSrc={<MdAdd className="h-4 w-4" aria-hidden />}
+							className="hidden w-auto sm:inline-flex"
 							onClick={handleCreateProjectClick}
 						/>
 					</div>
@@ -528,7 +532,7 @@ export function ProjectsPage() {
 							<button
 								type="button"
 								onClick={() => void refetch()}
-								className="mt-3 rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+								className={cn("mt-3", buttonSecondaryClass())}
 							>
 								Try again
 							</button>

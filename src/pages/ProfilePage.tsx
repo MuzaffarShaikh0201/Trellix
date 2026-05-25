@@ -229,9 +229,9 @@ export function ProfilePage() {
 								disabled={loading || isUnchanged}
 								loader={
 									<CustomLoader
-										size={24}
+										size={16}
 										color="#ffffff"
-										containerStyle={{ width: 24, height: 24 }}
+										containerStyle={{ width: 16, height: 16 }}
 										aria-label="Saving profile changes"
 									/>
 								}
@@ -289,9 +289,9 @@ export function ProfilePage() {
 								disabled={passwordLoading}
 								loader={
 									<CustomLoader
-										size={24}
+										size={16}
 										color="#ffffff"
-										containerStyle={{ width: 24, height: 24 }}
+										containerStyle={{ width: 16, height: 16 }}
 										aria-label="Updating password"
 									/>
 								}
