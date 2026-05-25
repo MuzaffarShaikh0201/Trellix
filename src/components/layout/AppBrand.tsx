@@ -4,6 +4,7 @@ export function AppBrand() {
 	return (
 		<Link
 			to="/"
+			replace
 			className="flex min-w-0 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
 			aria-label="Trellix home"
 		>

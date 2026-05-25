@@ -13,8 +13,14 @@ export type NavItem = {
 	end?: boolean;
 };
 
+export const DASHBOARD_PATH = "/";
+
+export function isDashboardRoute(to: string): boolean {
+	return to === DASHBOARD_PATH;
+}
+
 export const mainNavItems: NavItem[] = [
-	{ to: "/", label: "Dashboard", icon: MdSpaceDashboard, end: true },
+	{ to: DASHBOARD_PATH, label: "Dashboard", icon: MdSpaceDashboard, end: true },
 	{ to: "/projects", label: "Projects", icon: MdFolder },
 	{ to: "/calendar", label: "Calendar", icon: MdCalendarToday },
 	{ to: "/notes", label: "Notes", icon: MdDescription },

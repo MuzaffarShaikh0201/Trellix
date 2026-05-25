@@ -4,6 +4,7 @@ import type {
 	CreateProjectResponse,
 	GetProjectsParams,
 	GetProjectsResponse,
+	GetRecentProjectsResponse,
 	Project,
 	UpdateProjectParams,
 } from "@/types/project";
@@ -13,6 +14,10 @@ export function fetchProjects(params: GetProjectsParams = {}) {
 	return apiRequest<GetProjectsResponse>("/project", {
 		searchParams: params,
 	});
+}
+
+export function fetchRecentProjects() {
+	return apiRequest<GetRecentProjectsResponse>("/project/recent");
 }
 
 export function fetchProject(projectId: string) {

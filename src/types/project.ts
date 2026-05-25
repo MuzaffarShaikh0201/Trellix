@@ -48,6 +48,20 @@ export type GetProjectsResponse = {
 	items_per_page: number;
 };
 
+/** Summary row from GET /project/recent (up to 5, by updated_at). */
+export type RecentProjectItem = {
+	id: string;
+	title: string;
+	is_favorite: boolean;
+	status: ProjectStatus;
+	created_at: string;
+	updated_at: string;
+};
+
+export type GetRecentProjectsResponse = {
+	projects: RecentProjectItem[];
+};
+
 export type CreateProjectParams = {
 	title: string;
 	description?: string | null;

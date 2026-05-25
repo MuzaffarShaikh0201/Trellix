@@ -1,6 +1,6 @@
 import { NavLink } from "react-router";
 
-import { mainNavItems } from "@/components/layout/nav-items";
+import { isDashboardRoute, mainNavItems } from "@/components/layout/nav-items";
 import { cn } from "@/lib/utils";
 
 export function MobileBottomNav() {
@@ -21,6 +21,7 @@ export function MobileBottomNav() {
 						<NavLink
 							to={to}
 							end={end}
+							replace={isDashboardRoute(to)}
 							className={({ isActive }) =>
 								cn(
 									"flex w-full flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 transition-colors",

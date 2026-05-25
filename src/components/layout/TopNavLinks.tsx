@@ -1,6 +1,6 @@
 import { NavLink } from "react-router";
 
-import { mainNavItems } from "@/components/layout/nav-items";
+import { isDashboardRoute, mainNavItems } from "@/components/layout/nav-items";
 import { cn } from "@/lib/utils";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -18,7 +18,13 @@ export function TopNavLinks() {
 			aria-label="Main navigation"
 		>
 			{mainNavItems.map(({ to, label, end }) => (
-				<NavLink key={to} to={to} end={end} className={navLinkClass}>
+				<NavLink
+					key={to}
+					to={to}
+					end={end}
+					replace={isDashboardRoute(to)}
+					className={navLinkClass}
+				>
 					{label}
 				</NavLink>
 			))}

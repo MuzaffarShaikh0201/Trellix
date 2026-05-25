@@ -61,7 +61,7 @@ function HttpErrorShell({ code, title, description }: HttpErrorShellProps) {
 						variant="primary"
 						type="button"
 						className="w-auto"
-						onClick={() => navigate("/")}
+						onClick={() => navigate("/", { replace: true })}
 					/>
 				</div>
 			</main>
