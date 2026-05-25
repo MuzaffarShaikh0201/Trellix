@@ -1,6 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 
+import { DeleteProjectModal } from "@/components/project/DeleteProjectModal";
 import {
 	actionButtonDangerClass,
 	actionButtonPrimaryTintClass,
@@ -62,6 +64,7 @@ export function ProjectDetailsActions({ project }: ProjectDetailsActionsProps) {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const projectQueryKey = ["project", project.id] as const;
+	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
 	const favoriteMutation = useMutation({
 		mutationFn: () => toggleProjectFavorite(project.id),
@@ -130,6 +133,7 @@ export function ProjectDetailsActions({ project }: ProjectDetailsActionsProps) {
 	const deleteMutation = useMutation({
 		mutationFn: () => deleteProject(project.id),
 		onSuccess: async () => {
+			setDeleteModalOpen(false);
 			showAlert("Project deleted", "success", "The project has been removed.");
 			await queryClient.invalidateQueries({ queryKey: ["projects"] });
 			navigate("/projects");
@@ -159,11 +163,11 @@ export function ProjectDetailsActions({ project }: ProjectDetailsActionsProps) {
 		void archiveMutation.mutate();
 	}
 
-	function handleDelete() {
-		const confirmed = window.confirm(
-			`Delete "${project.title}"? This cannot be undone.`,
-		);
-		if (!confirmed) return;
+	function handleDeleteClick() {
+		setDeleteModalOpen(true);
+	}
+
+	function handleDeleteConfirm() {
 		void deleteMutation.mutate();
 	}
 
@@ -171,42 +175,52 @@ export function ProjectDetailsActions({ project }: ProjectDetailsActionsProps) {
 		<aside className="space-y-4">
 			<h2 className="text-sm font-semibold text-primary">Actions</h2>
 			<div className="flex flex-col gap-5">
-				<ProjectActionItem
-					description={
-						project.is_favorite
-							? "Remove this project from favorites. It will no longer be highlighted for quick access."
-							: "Mark this project for quick access and priority visibility."
-					}
-					buttonLabel={
-						project.is_favorite
-							? "Remove from Favorites"
-							: "Add to Favorites"
-					}
-					onClick={handleFavorite}
-					disabled={isBusy}
-					buttonClassName={actionButtonWarningClass()}
-				/>
-				<ProjectActionItem
-					description={
-						project.is_archived
-							? "Restore this project to your active list so it appears alongside your current projects again."
-							: "Move the project out of your active list without deleting it. You can restore it later."
-					}
-					buttonLabel={
-						project.is_archived ? "Restore Project" : "Archive Project"
-					}
-					onClick={handleArchive}
-					disabled={isBusy}
-					buttonClassName={actionButtonPrimaryTintClass()}
-				/>
+				<div className="flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-start sm:gap-x-24 sm:gap-y-5">
+					<ProjectActionItem
+						description={
+							project.is_favorite
+								? "Remove this project from favorites. It will no longer be highlighted for quick access."
+								: "Mark this project for quick access and priority visibility."
+						}
+						buttonLabel={
+							project.is_favorite
+								? "Remove from Favorites"
+								: "Add to Favorites"
+						}
+						onClick={handleFavorite}
+						disabled={isBusy}
+						buttonClassName={actionButtonWarningClass()}
+					/>
+					<ProjectActionItem
+						description={
+							project.is_archived
+								? "Restore this project to your active list so it appears alongside your current projects again."
+								: "Move the project out of your active list without deleting it. You can restore it later."
+						}
+						buttonLabel={
+							project.is_archived ? "Restore Project" : "Archive Project"
+						}
+						onClick={handleArchive}
+						disabled={isBusy}
+						buttonClassName={actionButtonPrimaryTintClass()}
+					/>
+				</div>
 				<ProjectActionItem
 					description="Permanently remove this project and its associated data. This action cannot be undone."
 					buttonLabel="Delete Project"
-					onClick={handleDelete}
+					onClick={handleDeleteClick}
 					disabled={isBusy}
 					buttonClassName={actionButtonDangerClass()}
 				/>
 			</div>
+
+			<DeleteProjectModal
+				open={deleteModalOpen}
+				project={project}
+				onClose={() => setDeleteModalOpen(false)}
+				onConfirm={handleDeleteConfirm}
+				deleting={deleteMutation.isPending}
+			/>
 		</aside>
 	);
 }

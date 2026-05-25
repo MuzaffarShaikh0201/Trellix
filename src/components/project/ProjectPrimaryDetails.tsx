@@ -48,11 +48,11 @@ import type { Project, ProjectStatus } from "@/types/project";
 
 /** Status, dates, and read-only timestamps — same compact width on desktop. */
 const compactDateFieldClass =
-	"w-full md:w-fit md:min-w-[13rem] md:max-w-sm";
+	"w-full md:w-fit md:min-w-[15rem] md:max-w-md";
 
 /** Repository URL — compact on desktop; row may leave space on the right. */
 const compactRepoFieldClass =
-	"w-full md:w-fit md:min-w-[22rem] md:max-w-2xl";
+	"w-full md:w-fit md:min-w-[26rem] md:max-w-3xl";
 
 const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
 

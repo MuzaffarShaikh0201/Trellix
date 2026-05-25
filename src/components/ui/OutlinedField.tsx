@@ -5,8 +5,15 @@ import { cn } from "@/lib/utils";
 
 export const outlinedFieldLabelClass = "text-xs font-light text-text-primary";
 
+/** Shared control height for single-line outlined fields (repo, dates, status, timestamps). */
+export const outlinedFieldBoxClass = cn(
+	"flex h-10 w-full flex-row items-center gap-2 rounded-lg border-2 bg-tint px-2",
+	"border-tint transition-[border-color]",
+	"group-focus-within/field:border-primary",
+);
+
 const controlClass = cn(
-	"w-full border-none bg-transparent text-sm text-text-primary outline-none",
+	"min-h-0 w-full flex-1 border-none bg-transparent text-sm leading-5 text-text-primary outline-none",
 	"placeholder:text-sm placeholder:text-text-secondary",
 );
 
@@ -47,13 +54,7 @@ function FieldBox({
 	trailing?: ReactNode;
 }) {
 	return (
-		<div
-			className={cn(
-				"flex w-full flex-row items-center justify-between rounded-lg border-2 bg-tint p-2",
-				"border-tint transition-[border-color]",
-				"group-focus-within/field:border-primary",
-			)}
-		>
+		<div className={cn(outlinedFieldBoxClass, "justify-between")}>
 			{children}
 			{trailing ? (
 				<span className="shrink-0 text-text-secondary">{trailing}</span>
@@ -122,7 +123,7 @@ export function OutlinedInputField({
 					placeholder={placeholder}
 					className={cn(
 						controlClass,
-						isDate && "input-hide-date-picker",
+						isDate && "input-hide-date-picker h-5 appearance-none",
 					)}
 				/>
 			</FieldBox>
@@ -209,23 +210,17 @@ export function OutlinedReadOnlyField({
 			<span id={`${id}-label`} className={outlinedFieldLabelClass}>
 				{label}
 			</span>
-			<div
-				aria-labelledby={`${id}-label`}
-				className="w-full rounded-lg border-2 border-tint bg-tint p-2"
-			>
+			<div aria-labelledby={`${id}-label`} className={outlinedFieldBoxClass}>
 				{dateTime ? (
 					<time
 						id={id}
 						dateTime={dateTime}
-						className={cn(controlClass, "block min-h-[1.25rem]")}
+						className={cn(controlClass, "block truncate")}
 					>
 						{value}
 					</time>
 				) : (
-					<p
-						id={id}
-						className={cn(controlClass, "min-h-[1.25rem]")}
-					>
+					<p id={id} className={cn(controlClass, "truncate")}>
 						{value}
 					</p>
 				)}

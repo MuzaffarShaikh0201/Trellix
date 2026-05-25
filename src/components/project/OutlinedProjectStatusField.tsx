@@ -2,7 +2,10 @@ import { useEffect, useId, useRef, useState } from "react";
 import { MdExpandMore } from "react-icons/md";
 
 import { ProjectStatusChip } from "@/components/project/ProjectStatusChip";
-import { outlinedFieldLabelClass } from "@/components/ui/OutlinedField";
+import {
+	outlinedFieldBoxClass,
+	outlinedFieldLabelClass,
+} from "@/components/ui/OutlinedField";
 import { cn } from "@/lib/utils";
 import type { ProjectStatus } from "@/types/project";
 
@@ -63,9 +66,9 @@ export function OutlinedProjectStatusField({
 			</span>
 			<div
 				className={cn(
-					"flex w-full flex-row items-center justify-between rounded-lg border-2 bg-tint p-2",
-					"border-tint transition-[border-color]",
-					open ? "border-primary" : "group-focus-within/field:border-primary",
+					outlinedFieldBoxClass,
+					"justify-between",
+					open && "border-primary",
 				)}
 			>
 				<button

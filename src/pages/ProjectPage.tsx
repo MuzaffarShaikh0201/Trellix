@@ -84,8 +84,6 @@ export function ProjectPage() {
 		},
 	});
 
-
-
 	if (!projectId) {
 
 		return (
@@ -279,11 +277,11 @@ export function ProjectPage() {
 								<div className="w-full space-y-6" aria-hidden>
 									<div className="w-full">
 										<div className="flex flex-col gap-4 md:flex-row md:gap-4">
-											<div className="space-y-2 md:w-52">
+											<div className="space-y-2 md:w-60">
 												<div className="h-3 w-16 animate-pulse rounded bg-tint" />
 												<div className="h-10 w-full animate-pulse rounded-lg bg-tint" />
 											</div>
-											<div className="space-y-2 md:w-52">
+											<div className="space-y-2 md:w-60">
 												<div className="h-3 w-24 animate-pulse rounded bg-tint" />
 												<div className="h-10 w-full animate-pulse rounded-lg bg-tint" />
 											</div>
@@ -295,9 +293,9 @@ export function ProjectPage() {
 											<div className="w-full space-y-4 md:w-fit">
 												<div className="h-20 w-full animate-pulse rounded-lg bg-tint" />
 												<div className="flex flex-col gap-4 md:flex-row md:gap-4">
-													<div className="h-10 w-full animate-pulse rounded-lg bg-tint md:w-[28rem]" />
-													<div className="h-10 w-full animate-pulse rounded-lg bg-tint md:w-52" />
-													<div className="h-10 w-full animate-pulse rounded-lg bg-tint md:w-52" />
+													<div className="h-10 w-full animate-pulse rounded-lg bg-tint md:w-[26rem]" />
+													<div className="h-10 w-full animate-pulse rounded-lg bg-tint md:w-60" />
+													<div className="h-10 w-full animate-pulse rounded-lg bg-tint md:w-60" />
 												</div>
 											</div>
 										</div>
