@@ -5,11 +5,8 @@ import {
 	useQueryClient,
 	type QueryKey,
 } from "@tanstack/react-query";
-import {
-	MdAdd,
-	MdFilterList,
-	MdSort,
-} from "react-icons/md";
+import { FaFilter, FaSort } from "react-icons/fa6";
+import { MdAdd } from "react-icons/md";
 
 import { CreateProjectCard } from "@/components/project/CreateProjectCard";
 import { CreateProjectModal } from "@/components/project/CreateProjectModal";
@@ -397,7 +394,7 @@ export function ProjectsPage() {
 							aria-expanded={filterModalOpen}
 							aria-controls={filterModalOpen ? `${controlsId}-filter-modal` : undefined}
 						>
-							<MdFilterList className="h-4 w-4" aria-hidden />
+							<FaFilter className="h-4 w-4" aria-hidden />
 						</button>
 						{filterModalOpen ? (
 							<div
@@ -453,7 +450,7 @@ export function ProjectsPage() {
 							aria-expanded={sortModalOpen}
 							aria-controls={sortModalOpen ? `${controlsId}-sort-modal` : undefined}
 						>
-							<MdSort className="h-4 w-4" aria-hidden />
+							<FaSort className="h-4 w-4" aria-hidden />
 						</button>
 						{sortModalOpen ? (
 							<div

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
-import { MdArrowBack, MdStar, MdStarBorder } from "react-icons/md";
+import { FaRegStar, FaStar } from "react-icons/fa";
+import { MdArrowBack } from "react-icons/md";
 
 import { ProjectHeaderStats } from "@/components/project/ProjectHeaderStats";
 import { ProjectPrimaryDetails } from "@/components/project/ProjectPrimaryDetails";
@@ -439,12 +440,12 @@ function ProjectPageToolbar({
 					}
 				>
 					{isFavorite ? (
-						<MdStar
+						<FaStar
 							className="h-[18px] w-[18px] text-yellow-500"
 							aria-hidden
 						/>
 					) : (
-						<MdStarBorder className="h-[18px] w-[18px]" aria-hidden />
+						<FaRegStar className="h-[18px] w-[18px]" aria-hidden />
 					)}
 				</button>
 			) : null}

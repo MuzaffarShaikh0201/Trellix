@@ -1,16 +1,18 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router";
 import {
+	FaArrowRightFromBracket,
+	FaGear,
+	FaPhone,
+	FaUser,
+} from "react-icons/fa6";
+import {
 	MdBrightnessAuto,
 	MdCheck,
-	MdContactMail,
 	MdDarkMode,
 	MdExpandMore,
 	MdGavel,
 	MdLightMode,
-	MdLogout,
-	MdPersonOutline,
-	MdSettings,
 } from "react-icons/md";
 import type { IconType } from "react-icons";
 
@@ -257,7 +259,7 @@ export function UserMenu() {
 								cn(menuLinkClass, isActive && "bg-primary/10")
 							}
 						>
-							<MdPersonOutline className="h-5 w-5 shrink-0 text-text-secondary" />
+							<FaUser className="h-4 w-4 shrink-0 text-text-secondary" />
 							Your profile
 						</NavLink>
 						<NavLink
@@ -268,7 +270,7 @@ export function UserMenu() {
 								cn(menuLinkClass, isActive && "bg-primary/10")
 							}
 						>
-							<MdSettings className="h-5 w-5 shrink-0 text-text-secondary" />
+							<FaGear className="h-4 w-4 shrink-0 text-text-secondary" />
 							Settings
 						</NavLink>
 						<NavLink
@@ -279,7 +281,7 @@ export function UserMenu() {
 								cn(menuLinkClass, isActive && "bg-primary/10")
 							}
 						>
-							<MdContactMail className="h-5 w-5 shrink-0 text-text-secondary" />
+							<FaPhone className="h-4 w-4 shrink-0 text-text-secondary" />
 							Contact us
 						</NavLink>
 						<NavLink
@@ -302,7 +304,7 @@ export function UserMenu() {
 							onClick={() => void handleLogout()}
 							className={menuLinkClass}
 						>
-							<MdLogout className="h-5 w-5 shrink-0 text-text-secondary" />
+							<FaArrowRightFromBracket className="h-4 w-4 shrink-0 text-text-secondary" />
 							Log out
 						</button>
 					</div>

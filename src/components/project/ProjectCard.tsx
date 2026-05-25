@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { MdStar, MdStarBorder } from "react-icons/md";
+import { FaRegStar, FaStar } from "react-icons/fa";
 
 import { ProjectRepoBadge } from "@/components/project/ProjectRepoBadge";
 import { projectCardShellClass } from "@/components/project/project-card-shell";
@@ -138,9 +138,9 @@ export function ProjectCard({
 							}
 						>
 							{project.is_favorite ? (
-								<MdStar className="h-[18px] w-[18px] text-yellow-500" aria-hidden />
+								<FaStar className="h-[18px] w-[18px] text-yellow-500" aria-hidden />
 							) : (
-								<MdStarBorder className="h-[18px] w-[18px]" aria-hidden />
+								<FaRegStar className="h-[18px] w-[18px]" aria-hidden />
 							)}
 						</button>
 					</div>
