@@ -6,6 +6,8 @@ import { AuthPage } from "@/pages/AuthPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { ProjectPage } from "@/pages/ProjectPage";
 import { ProjectsPage } from "@/pages/ProjectsPage";
+import { NotePage } from "@/pages/NotePage";
+import { NotesPage } from "@/pages/NotesPage";
 import { SectionPlaceholderPage } from "@/pages/SectionPlaceholderPage";
 import {
 	NotFoundPage,
@@ -34,10 +36,8 @@ function App() {
 					path="calendar"
 					element={<SectionPlaceholderPage title="Calendar" />}
 				/>
-				<Route
-					path="notes"
-					element={<SectionPlaceholderPage title="Notes" />}
-				/>
+				<Route path="notes" element={<NotesPage />} />
+				<Route path="notes/:noteId" element={<NotePage />} />
 				<Route
 					path="settings"
 					element={<SectionPlaceholderPage title="Settings" />}

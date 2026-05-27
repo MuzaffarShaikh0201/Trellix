@@ -1,6 +1,7 @@
 import type { Project, ProjectStatus } from "@/types/project";
 
 export type ProjectPrimaryDetailsForm = {
+	title: string;
 	description: string;
 	status: ProjectStatus;
 	repoUrl: string;
@@ -26,6 +27,7 @@ export function projectToPrimaryDetailsForm(
 	project: Project,
 ): ProjectPrimaryDetailsForm {
 	return {
+		title: project.title,
 		description: project.description ?? "",
 		status: project.status,
 		repoUrl: project.repo_url ?? "",
@@ -39,6 +41,7 @@ export function primaryDetailsFormsEqual(
 	b: ProjectPrimaryDetailsForm,
 ): boolean {
 	return (
+		a.title === b.title &&
 		a.description === b.description &&
 		a.status === b.status &&
 		a.repoUrl === b.repoUrl &&
@@ -51,6 +54,7 @@ export function primaryDetailsFormToUpdatePayload(
 	form: ProjectPrimaryDetailsForm,
 ) {
 	return {
+		title: form.title.trim() || null,
 		description: form.description.trim() || null,
 		status: form.status,
 		repo_url: form.repoUrl.trim() || null,

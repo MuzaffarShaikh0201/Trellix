@@ -70,6 +70,8 @@ export type OutlinedInputFieldProps = {
 	type?: "text" | "url" | "date" | "datetime-local";
 	placeholder?: string;
 	className?: string;
+	/** Icon or control shown at the right of the field (e.g. calendar, external link). */
+	trailing?: ReactNode;
 };
 
 export function OutlinedInputField({
@@ -79,6 +81,7 @@ export function OutlinedInputField({
 	type = "text",
 	placeholder = "",
 	className,
+	trailing,
 }: OutlinedInputFieldProps) {
 	const id = useId();
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -98,7 +101,8 @@ export function OutlinedInputField({
 		<FieldShell label={label} id={id} className={className}>
 			<FieldBox
 				trailing={
-					isDate ? (
+					trailing ??
+					(isDate ? (
 						<button
 							type="button"
 							tabIndex={-1}
@@ -111,7 +115,7 @@ export function OutlinedInputField({
 						>
 							<MdCalendarToday className="h-[18px] w-[18px]" aria-hidden />
 						</button>
-					) : undefined
+					) : undefined)
 				}
 			>
 				<input

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-
+import { MdOpenInNew } from "react-icons/md";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 
@@ -37,6 +37,8 @@ import {
 } from "@/lib/project/projectPrimaryDetailsForm";
 
 import { formatProjectDateTime } from "@/lib/project/formatProjectDate";
+import { normalizeRepoUrl } from "@/lib/project/normalizeRepoUrl";
+import { cn } from "@/lib/utils";
 
 import { getRequestErrorMessage } from "@/lib/getRequestErrorMessage";
 
@@ -49,6 +51,10 @@ import type { Project, ProjectStatus } from "@/types/project";
 /** Status, dates, and read-only timestamps — same compact width on desktop. */
 const compactDateFieldClass =
 	"w-full md:w-fit md:min-w-[15rem] md:max-w-md";
+
+/** Project title — full width on mobile, compact on desktop. */
+const compactTitleFieldClass =
+	"w-full md:w-fit md:min-w-[20rem] md:max-w-2xl";
 
 /** Repository URL — compact on desktop; row may leave space on the right. */
 const compactRepoFieldClass =
@@ -114,6 +120,8 @@ export function ProjectPrimaryDetails({ project }: ProjectPrimaryDetailsProps) {
 
 		project.updated_at,
 
+		project.title,
+
 		project.description,
 
 		project.status,
@@ -134,6 +142,11 @@ export function ProjectPrimaryDetails({ project }: ProjectPrimaryDetailsProps) {
 
 		[form, baseline],
 
+	);
+
+	const repoHref = useMemo(
+		() => normalizeRepoUrl(form.repoUrl),
+		[form.repoUrl],
 	);
 
 
@@ -237,13 +250,23 @@ export function ProjectPrimaryDetails({ project }: ProjectPrimaryDetailsProps) {
 					</h2>
 
 					<div className="space-y-4">
-						<OutlinedProjectStatusField
-							label="Status"
-							value={form.status}
-							onChange={(status) => patchForm({ status })}
-							options={STATUS_OPTIONS}
-							className={compactDateFieldClass}
-						/>
+						<div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-start md:gap-4">
+							<OutlinedInputField
+								label="Title"
+								value={form.title}
+								onChange={(title) => patchForm({ title })}
+								placeholder="Project title"
+								className={cn(compactTitleFieldClass, "md:min-w-[26rem] md:flex-1")}
+							/>
+
+							<OutlinedProjectStatusField
+								label="Status"
+								value={form.status}
+								onChange={(status) => patchForm({ status })}
+								options={STATUS_OPTIONS}
+								className={compactDateFieldClass}
+							/>
+						</div>
 
 						<div className="w-full space-y-4 md:w-fit">
 							<OutlinedTextAreaField
@@ -263,6 +286,36 @@ export function ProjectPrimaryDetails({ project }: ProjectPrimaryDetailsProps) {
 									onChange={(repoUrl) => patchForm({ repoUrl })}
 									placeholder="https://github.com/org/repo (optional)"
 									className={compactRepoFieldClass}
+									trailing={
+										repoHref ? (
+											<a
+												href={repoHref}
+												target="_blank"
+												rel="noopener noreferrer"
+												className={cn(
+													"shrink-0 transition-colors",
+													"text-text-secondary hover:text-primary",
+													"group-hover/field:text-primary",
+												)}
+												aria-label="Open repository"
+											>
+												<MdOpenInNew
+													className="h-[18px] w-[18px]"
+													aria-hidden
+												/>
+											</a>
+										) : (
+											<span
+												className="shrink-0 text-text-secondary/40"
+												aria-hidden
+											>
+												<MdOpenInNew
+													className="h-[18px] w-[18px]"
+													aria-hidden
+												/>
+											</span>
+										)
+									}
 								/>
 
 								<OutlinedInputField
@@ -302,7 +355,17 @@ export function ProjectPrimaryDetails({ project }: ProjectPrimaryDetailsProps) {
 
 							loading={updateMutation.isPending}
 
-							onClick={() => updateMutation.mutate()}
+							onClick={() => {
+								if (!form.title.trim()) {
+									showAlert(
+										"Validation Error",
+										"warning",
+										"Project title is required.",
+									);
+									return;
+								}
+								updateMutation.mutate();
+							}}
 
 							loader={
 

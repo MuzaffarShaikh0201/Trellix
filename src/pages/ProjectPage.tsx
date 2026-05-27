@@ -5,6 +5,8 @@ import { FaRegStar, FaStar } from "react-icons/fa";
 import { MdArrowBack } from "react-icons/md";
 
 import { ProjectHeaderStats } from "@/components/project/ProjectHeaderStats";
+import { NoteCardSkeleton } from "@/components/note/NoteCardSkeleton";
+import { ProjectNotesPanel } from "@/components/project/ProjectNotesPanel";
 import { ProjectPrimaryDetails } from "@/components/project/ProjectPrimaryDetails";
 import { ProjectTimestampsMeta } from "@/components/project/ProjectTimestampsMeta";
 import { fetchProject, toggleProjectFavorite } from "@/lib/api/projects";
@@ -273,48 +275,62 @@ export function ProjectPage() {
 							"bg-background-secondary",
 						)}
 					>
-						<div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-							{isPending ? (
+						{isPending ? (
+							<div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
 								<div className="w-full space-y-6" aria-hidden>
-									<div className="w-full">
-										<div className="flex flex-col gap-4 md:flex-row md:gap-4">
-											<div className="space-y-2 md:w-60">
-												<div className="h-3 w-16 animate-pulse rounded bg-tint" />
-												<div className="h-10 w-full animate-pulse rounded-lg bg-tint" />
-											</div>
-											<div className="space-y-2 md:w-60">
-												<div className="h-3 w-24 animate-pulse rounded bg-tint" />
-												<div className="h-10 w-full animate-pulse rounded-lg bg-tint" />
-											</div>
-										</div>
-									</div>
-									<div className="w-full space-y-6">
-										<div className="space-y-4 border-t border-primary/10 pt-6">
-											<div className="h-4 w-28 animate-pulse rounded bg-tint" />
-											<div className="w-full space-y-4 md:w-fit">
-												<div className="h-20 w-full animate-pulse rounded-lg bg-tint" />
-												<div className="flex flex-col gap-4 md:flex-row md:gap-4">
-													<div className="h-10 w-full animate-pulse rounded-lg bg-tint md:w-[26rem]" />
-													<div className="h-10 w-full animate-pulse rounded-lg bg-tint md:w-60" />
-													<div className="h-10 w-full animate-pulse rounded-lg bg-tint md:w-60" />
-												</div>
-											</div>
-										</div>
-										<div className="space-y-5 border-t border-primary/10 pt-6">
-											<div className="h-4 w-16 animate-pulse rounded bg-tint" />
-											{Array.from({ length: 3 }, (_, i) => (
-												<div key={i} className="space-y-2">
-													<div className="h-8 w-full animate-pulse rounded bg-tint" />
-													<div className="h-8 w-28 animate-pulse rounded-lg bg-tint" />
-												</div>
+									{activeTab === "NOTES" ? (
+										<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+											{Array.from({ length: 6 }, (_, i) => (
+												<NoteCardSkeleton key={`notes-tab-skeleton-${i}`} />
 											))}
 										</div>
-									</div>
+									) : (
+										<>
+											<div className="w-full">
+												<div className="flex flex-col gap-4 md:flex-row md:gap-4">
+													<div className="space-y-2 md:w-60">
+														<div className="h-3 w-16 animate-pulse rounded bg-tint" />
+														<div className="h-10 w-full animate-pulse rounded-lg bg-tint" />
+													</div>
+													<div className="space-y-2 md:w-60">
+														<div className="h-3 w-24 animate-pulse rounded bg-tint" />
+														<div className="h-10 w-full animate-pulse rounded-lg bg-tint" />
+													</div>
+												</div>
+											</div>
+											<div className="w-full space-y-6">
+												<div className="space-y-4 border-t border-primary/10 pt-6">
+													<div className="h-4 w-28 animate-pulse rounded bg-tint" />
+													<div className="w-full space-y-4 md:w-fit">
+														<div className="h-20 w-full animate-pulse rounded-lg bg-tint" />
+														<div className="flex flex-col gap-4 md:flex-row md:gap-4">
+															<div className="h-10 w-full animate-pulse rounded-lg bg-tint md:w-[26rem]" />
+															<div className="h-10 w-full animate-pulse rounded-lg bg-tint md:w-60" />
+															<div className="h-10 w-full animate-pulse rounded-lg bg-tint md:w-60" />
+														</div>
+													</div>
+												</div>
+												<div className="space-y-5 border-t border-primary/10 pt-6">
+													<div className="h-4 w-16 animate-pulse rounded bg-tint" />
+													{Array.from({ length: 3 }, (_, i) => (
+														<div key={i} className="space-y-2">
+															<div className="h-8 w-full animate-pulse rounded bg-tint" />
+															<div className="h-8 w-28 animate-pulse rounded-lg bg-tint" />
+														</div>
+													))}
+												</div>
+											</div>
+										</>
+									)}
 								</div>
-							) : project ? (
+							</div>
+						) : project && activeTab === "NOTES" ? (
+							<ProjectNotesPanel project={project} />
+						) : project ? (
+							<div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
 								<ProjectTabPanel tab={activeTab} project={project} />
-							) : null}
-						</div>
+							</div>
+						) : null}
 					</div>
 
 				</>
@@ -352,14 +368,6 @@ function ProjectTabPanel({ tab, project }: ProjectTabPanelProps) {
 			return (
 
 				<TabPlaceholder message="Tasks for this project will appear here." />
-
-			);
-
-		case "NOTES":
-
-			return (
-
-				<TabPlaceholder message="Notes for this project will appear here." />
 
 			);
 
