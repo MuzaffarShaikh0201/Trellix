@@ -1,15 +1,15 @@
-import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
 	useMutation,
 	useQuery,
 	useQueryClient,
 	type QueryKey,
 } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import { FaFilter, FaSort } from "react-icons/fa6";
 import { MdAdd } from "react-icons/md";
 
 import { CreateNoteCard } from "@/components/note/CreateNoteCard";
-import { CreateNoteModal } from "@/components/note/CreateNoteModal";
 import { NoteCard } from "@/components/note/NoteCard";
 import { NoteCardSkeleton } from "@/components/note/NoteCardSkeleton";
 import Button from "@/components/ui/Button";
@@ -18,7 +18,7 @@ import {
 	buttonSecondaryClass,
 } from "@/components/ui/buttonStyles";
 import { Pagination } from "@/components/ui/Pagination";
-import { createNote, fetchNotes, toggleNotePinned } from "@/lib/api/notes";
+import { fetchNotes, toggleNotePinned } from "@/lib/api/notes";
 import { fetchProjects } from "@/lib/api/projects";
 import { getRequestErrorMessage } from "@/lib/getRequestErrorMessage";
 import { cn } from "@/lib/utils";
@@ -51,6 +51,7 @@ const PROJECT_PICKER_QUERY_KEY = ["projects", "picker"] as const;
 
 export function NotesPage() {
 	const queryClient = useQueryClient();
+	const navigate = useNavigate();
 	const [activeTab, setActiveTab] = useState<NoteTab>("ALL");
 	const [projectFilter, setProjectFilter] = useState<string>("ALL");
 	const [sortBy, setSortBy] = useState<NoteSortBy>("updated_at");
@@ -62,12 +63,6 @@ export function NotesPage() {
 	const filterRootRef = useRef<HTMLDivElement>(null);
 	const sortRootRef = useRef<HTMLDivElement>(null);
 	const controlsId = useId();
-
-	const [createModalOpen, setCreateModalOpen] = useState(false);
-	const [createTitle, setCreateTitle] = useState("");
-	const [createContent, setCreateContent] = useState("");
-	const [createProjectId, setCreateProjectId] = useState("");
-	const [createSubmitting, setCreateSubmitting] = useState(false);
 
 	const personalOnly = activeTab === "PERSONAL" ? true : undefined;
 	const effectiveProjectId =
@@ -152,7 +147,6 @@ export function NotesPage() {
 			if (event.key === "Escape") {
 				setFilterModalOpen(false);
 				setSortModalOpen(false);
-				setCreateModalOpen(false);
 			}
 		}
 
@@ -162,16 +156,7 @@ export function NotesPage() {
 			document.removeEventListener("pointerdown", onPointerDown);
 			document.removeEventListener("keydown", onKeyDown);
 		};
-	}, [filterModalOpen, sortModalOpen, createModalOpen]);
-
-	useEffect(() => {
-		if (!createModalOpen) return;
-		const prev = document.body.style.overflow;
-		document.body.style.overflow = "hidden";
-		return () => {
-			document.body.style.overflow = prev;
-		};
-	}, [createModalOpen]);
+	}, [filterModalOpen, sortModalOpen]);
 
 	const {
 		data,
@@ -240,58 +225,10 @@ export function NotesPage() {
 	const canGoPrev = currentPage > 1;
 	const canGoNext = currentPage < totalPages;
 
-	function resetCreateForm() {
-		setCreateTitle("");
-		setCreateContent("");
-		setCreateProjectId("");
-	}
-
-	function openCreateModal() {
+	function goToCreate() {
 		setFilterModalOpen(false);
 		setSortModalOpen(false);
-		setCreateModalOpen(true);
-	}
-
-	function closeCreateModal() {
-		setCreateModalOpen(false);
-		setCreateSubmitting(false);
-		resetCreateForm();
-	}
-
-	function handleCreateSubmit(e: FormEvent<HTMLFormElement>) {
-		e.preventDefault();
-
-		const title = createTitle.trim();
-		if (!title) {
-			showAlert("Validation Error", "warning", "Note title is required.");
-			return;
-		}
-
-		setCreateSubmitting(true);
-		void (async () => {
-			try {
-				await createNote({
-					title,
-					content: createContent.trim() || null,
-					project_id: createProjectId.trim() || null,
-				});
-				showAlert("Note created", "success", "Your note has been created.");
-
-				await queryClient.invalidateQueries({ queryKey: ["notes"] });
-				closeCreateModal();
-			} catch (err) {
-				showAlert(
-					"Create failed",
-					"error",
-					getRequestErrorMessage(
-						err,
-						"Something went wrong while creating your note.",
-					),
-				);
-			} finally {
-				setCreateSubmitting(false);
-			}
-		})();
+		navigate("/notes/new");
 	}
 
 	const emptyStateMessage =
@@ -347,7 +284,7 @@ export function NotesPage() {
 							type="button"
 							aria-label="Create Note"
 							title="Create Note"
-							onClick={openCreateModal}
+							onClick={goToCreate}
 							className={cn(
 								buttonPrimaryClass("h-8 w-8 shrink-0 p-0 sm:hidden"),
 							)}
@@ -359,7 +296,7 @@ export function NotesPage() {
 							variant="primary"
 							imgSrc={<MdAdd className="h-4 w-4" aria-hidden />}
 							className="hidden w-auto sm:inline-flex"
-							onClick={openCreateModal}
+							onClick={goToCreate}
 						/>
 					</div>
 				</div>
@@ -583,7 +520,7 @@ export function NotesPage() {
 												/>
 											))}
 											{showCreateCard ? (
-												<CreateNoteCard onCreate={openCreateModal} />
+												<CreateNoteCard onCreate={goToCreate} />
 											) : null}
 										</>
 									)}
@@ -622,21 +559,6 @@ export function NotesPage() {
 					/>
 				) : null}
 			</div>
-
-			<CreateNoteModal
-				open={createModalOpen}
-				onClose={closeCreateModal}
-				onSubmit={handleCreateSubmit}
-				title={createTitle}
-				content={createContent}
-				projectId={createProjectId}
-				projects={projectOptions}
-				projectsLoading={projectsPickerPending}
-				onTitleChange={(e) => setCreateTitle(e.target.value)}
-				onContentChange={(e) => setCreateContent(e.target.value)}
-				onProjectIdChange={(e) => setCreateProjectId(e.target.value)}
-				submitting={createSubmitting}
-			/>
 		</section>
 	);
 }

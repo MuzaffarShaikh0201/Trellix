@@ -5,6 +5,7 @@ import { MdArrowBack, MdPushPin } from "react-icons/md";
 import { CustomLoader } from "@/components/ui/CustomLoader";
 import { buttonSecondaryClass } from "@/components/ui/buttonStyles";
 import { deleteNote, fetchNote, toggleNotePinned } from "@/lib/api/notes";
+import { MarkdownContent } from "@/components/note/MarkdownContent";
 import { NoteLastUpdated } from "@/components/note/NoteLastUpdated";
 import { formatProjectDateTime } from "@/lib/project/formatProjectDate";
 import { getRequestErrorMessage } from "@/lib/getRequestErrorMessage";
@@ -180,9 +181,7 @@ export function NotePage() {
 						)}
 					>
 						{note.content?.trim() ? (
-							<div className="whitespace-pre-wrap text-sm leading-relaxed text-text-primary">
-								{note.content}
-							</div>
+							<MarkdownContent content={note.content} />
 						) : (
 							<p className="text-sm text-text-secondary">No content.</p>
 						)}

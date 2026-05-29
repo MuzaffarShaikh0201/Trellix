@@ -8,6 +8,7 @@ import { ProjectPage } from "@/pages/ProjectPage";
 import { ProjectsPage } from "@/pages/ProjectsPage";
 import { NotePage } from "@/pages/NotePage";
 import { NotesPage } from "@/pages/NotesPage";
+import { CreateNotePage } from "@/pages/CreateNotePage";
 import { SectionPlaceholderPage } from "@/pages/SectionPlaceholderPage";
 import {
 	NotFoundPage,
@@ -37,6 +38,7 @@ function App() {
 					element={<SectionPlaceholderPage title="Calendar" />}
 				/>
 				<Route path="notes" element={<NotesPage />} />
+				<Route path="notes/new" element={<CreateNotePage />} />
 				<Route path="notes/:noteId" element={<NotePage />} />
 				<Route
 					path="settings"

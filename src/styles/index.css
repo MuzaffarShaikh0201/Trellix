@@ -108,3 +108,117 @@ body {
 		appearance: none;
 	}
 }
+
+/* Markdown code-block syntax highlighting (rehype-highlight / highlight.js).
+   Token colors are tuned to read on the tint surface in both themes. */
+.markdown-body .hljs {
+	color: var(--text-primary);
+	background: transparent;
+}
+
+.markdown-body .hljs-comment,
+.markdown-body .hljs-quote {
+	color: #6b7280;
+	font-style: italic;
+}
+
+.markdown-body .hljs-keyword,
+.markdown-body .hljs-selector-tag,
+.markdown-body .hljs-tag,
+.markdown-body .hljs-name,
+.markdown-body .hljs-meta {
+	color: #7c3aed;
+}
+
+.markdown-body .hljs-string,
+.markdown-body .hljs-regexp,
+.markdown-body .hljs-addition,
+.markdown-body .hljs-meta-string {
+	color: #15803d;
+}
+
+.markdown-body .hljs-number,
+.markdown-body .hljs-literal,
+.markdown-body .hljs-bullet {
+	color: #b45309;
+}
+
+.markdown-body .hljs-title,
+.markdown-body .hljs-title.function_,
+.markdown-body .hljs-section,
+.markdown-body .hljs-attr,
+.markdown-body .hljs-attribute,
+.markdown-body .hljs-symbol {
+	color: #2563eb;
+}
+
+.markdown-body .hljs-built_in,
+.markdown-body .hljs-type,
+.markdown-body .hljs-class .hljs-title,
+.markdown-body .hljs-params {
+	color: #c2410c;
+}
+
+.markdown-body .hljs-variable,
+.markdown-body .hljs-property,
+.markdown-body .hljs-template-variable {
+	color: var(--text-primary);
+}
+
+.markdown-body .hljs-deletion {
+	color: #b91c1c;
+}
+
+.markdown-body .hljs-emphasis {
+	font-style: italic;
+}
+
+.markdown-body .hljs-strong {
+	font-weight: 600;
+}
+
+[data-theme="dark"] .markdown-body .hljs-comment,
+[data-theme="dark"] .markdown-body .hljs-quote {
+	color: #94a3b8;
+}
+
+[data-theme="dark"] .markdown-body .hljs-keyword,
+[data-theme="dark"] .markdown-body .hljs-selector-tag,
+[data-theme="dark"] .markdown-body .hljs-tag,
+[data-theme="dark"] .markdown-body .hljs-name,
+[data-theme="dark"] .markdown-body .hljs-meta {
+	color: #c4b5fd;
+}
+
+[data-theme="dark"] .markdown-body .hljs-string,
+[data-theme="dark"] .markdown-body .hljs-regexp,
+[data-theme="dark"] .markdown-body .hljs-addition,
+[data-theme="dark"] .markdown-body .hljs-meta-string {
+	color: #86efac;
+}
+
+[data-theme="dark"] .markdown-body .hljs-number,
+[data-theme="dark"] .markdown-body .hljs-literal,
+[data-theme="dark"] .markdown-body .hljs-bullet {
+	color: #fcd34d;
+}
+
+[data-theme="dark"] .markdown-body .hljs-title,
+[data-theme="dark"] .markdown-body .hljs-title.function_,
+[data-theme="dark"] .markdown-body .hljs-section,
+[data-theme="dark"] .markdown-body .hljs-attr,
+[data-theme="dark"] .markdown-body .hljs-attribute,
+[data-theme="dark"] .markdown-body .hljs-symbol {
+	color: #93c5fd;
+}
+
+[data-theme="dark"] .markdown-body .hljs-built_in,
+[data-theme="dark"] .markdown-body .hljs-type,
+[data-theme="dark"] .markdown-body .hljs-class .hljs-title,
+[data-theme="dark"] .markdown-body .hljs-params {
+	color: #fdba74;
+}
+
+[data-theme="dark"] .markdown-body .hljs-deletion {
+	color: #fca5a5;
+}

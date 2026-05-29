@@ -1,25 +1,25 @@
-import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
 	useMutation,
 	useQuery,
 	useQueryClient,
 	type QueryKey,
 } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import { FaSort } from "react-icons/fa6";
 import { MdAdd } from "react-icons/md";
 
 import { CreateNoteCard } from "@/components/note/CreateNoteCard";
-import { CreateNoteModal } from "@/components/note/CreateNoteModal";
 import { NoteCard } from "@/components/note/NoteCard";
 import { NoteCardSkeleton } from "@/components/note/NoteCardSkeleton";
 import Button from "@/components/ui/Button";
 import { Pagination } from "@/components/ui/Pagination";
 import { buttonPrimaryClass, buttonSecondaryClass } from "@/components/ui/buttonStyles";
-import { createNote, fetchNotes, toggleNotePinned } from "@/lib/api/notes";
+import { fetchNotes, toggleNotePinned } from "@/lib/api/notes";
 import { getRequestErrorMessage } from "@/lib/getRequestErrorMessage";
 import { cn } from "@/lib/utils";
 import { showAlert } from "@/services/alertService";
-import type { NoteProjectRef, NoteSortBy, NoteSortOrder } from "@/types/note";
+import type { NoteSortBy, NoteSortOrder } from "@/types/note";
 import type { Project } from "@/types/project";
 
 const SORT_BY_OPTIONS: { value: NoteSortBy; label: string }[] = [
@@ -45,6 +45,7 @@ type ProjectNotesPanelProps = {
 
 export function ProjectNotesPanel({ project }: ProjectNotesPanelProps) {
 	const queryClient = useQueryClient();
+	const navigate = useNavigate();
 	const controlsId = useId();
 	const sortRootRef = useRef<HTMLDivElement>(null);
 	const [page, setPage] = useState(1);
@@ -52,15 +53,6 @@ export function ProjectNotesPanel({ project }: ProjectNotesPanelProps) {
 	const [sortBy, setSortBy] = useState<NoteSortBy>("updated_at");
 	const [sortOrder, setSortOrder] = useState<NoteSortOrder>("desc");
 	const [sortModalOpen, setSortModalOpen] = useState(false);
-	const [createModalOpen, setCreateModalOpen] = useState(false);
-	const [createTitle, setCreateTitle] = useState("");
-	const [createContent, setCreateContent] = useState("");
-	const [createSubmitting, setCreateSubmitting] = useState(false);
-
-	const lockedProject: NoteProjectRef = useMemo(
-		() => ({ id: project.id, title: project.title }),
-		[project.id, project.title],
-	);
 
 	const queryKey = useMemo(
 		() =>
@@ -88,7 +80,6 @@ export function ProjectNotesPanel({ project }: ProjectNotesPanelProps) {
 		function onKeyDown(event: KeyboardEvent) {
 			if (event.key === "Escape") {
 				setSortModalOpen(false);
-				setCreateModalOpen(false);
 			}
 		}
 
@@ -98,7 +89,7 @@ export function ProjectNotesPanel({ project }: ProjectNotesPanelProps) {
 			document.removeEventListener("pointerdown", onPointerDown);
 			document.removeEventListener("keydown", onKeyDown);
 		};
-	}, [sortModalOpen, createModalOpen]);
+	}, [sortModalOpen]);
 
 	const {
 		data,
@@ -165,55 +156,11 @@ export function ProjectNotesPanel({ project }: ProjectNotesPanelProps) {
 	const canGoPrev = currentPage > 1;
 	const canGoNext = currentPage < totalPages;
 
-	function resetCreateForm() {
-		setCreateTitle("");
-		setCreateContent("");
-	}
-
-	function openCreateModal() {
+	function goToCreate() {
 		setSortModalOpen(false);
-		setCreateModalOpen(true);
-	}
-
-	function closeCreateModal() {
-		setCreateModalOpen(false);
-		setCreateSubmitting(false);
-		resetCreateForm();
-	}
-
-	function handleCreateSubmit(e: FormEvent<HTMLFormElement>) {
-		e.preventDefault();
-
-		const title = createTitle.trim();
-		if (!title) {
-			showAlert("Validation Error", "warning", "Note title is required.");
-			return;
-		}
-
-		setCreateSubmitting(true);
-		void (async () => {
-			try {
-				await createNote({
-					title,
-					content: createContent.trim() || null,
-					project_id: project.id,
-				});
-				showAlert("Note created", "success", "Your note has been created.");
-				await queryClient.invalidateQueries({ queryKey: ["notes"] });
-				closeCreateModal();
-			} catch (err) {
-				showAlert(
-					"Create failed",
-					"error",
-					getRequestErrorMessage(
-						err,
-						"Something went wrong while creating your note.",
-					),
-				);
-			} finally {
-				setCreateSubmitting(false);
-			}
-		})();
+		navigate(`/notes/new?projectId=${encodeURIComponent(project.id)}`, {
+			state: { lockedProjectTitle: project.title },
+		});
 	}
 
 	return (
@@ -311,7 +258,7 @@ export function ProjectNotesPanel({ project }: ProjectNotesPanelProps) {
 						type="button"
 						aria-label="Create Note"
 						title="Create Note"
-						onClick={openCreateModal}
+						onClick={goToCreate}
 						className={cn(
 							buttonPrimaryClass("h-8 w-8 shrink-0 p-0 sm:hidden"),
 						)}
@@ -323,7 +270,7 @@ export function ProjectNotesPanel({ project }: ProjectNotesPanelProps) {
 						variant="primary"
 						imgSrc={<MdAdd className="h-4 w-4" aria-hidden />}
 						className="hidden w-auto sm:inline-flex"
-						onClick={openCreateModal}
+						onClick={goToCreate}
 					/>
 				</div>
 			</div>
@@ -374,7 +321,7 @@ export function ProjectNotesPanel({ project }: ProjectNotesPanelProps) {
 												}
 											/>
 										))}
-										<CreateNoteCard onCreate={openCreateModal} />
+										<CreateNoteCard onCreate={goToCreate} />
 									</>
 								)}
 						</div>
@@ -412,22 +359,6 @@ export function ProjectNotesPanel({ project }: ProjectNotesPanelProps) {
 					onLastPage={() => setPage(totalPages)}
 				/>
 			) : null}
-
-			<CreateNoteModal
-				open={createModalOpen}
-				onClose={closeCreateModal}
-				onSubmit={handleCreateSubmit}
-				title={createTitle}
-				content={createContent}
-				projectId={project.id}
-				projects={[lockedProject]}
-				projectsLoading={false}
-				lockedProject={lockedProject}
-				onTitleChange={(e) => setCreateTitle(e.target.value)}
-				onContentChange={(e) => setCreateContent(e.target.value)}
-				onProjectIdChange={() => {}}
-				submitting={createSubmitting}
-			/>
 		</div>
 	);
 }
