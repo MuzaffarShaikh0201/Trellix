@@ -34,6 +34,7 @@ type MarkdownEditorPaneProps = {
 	className?: string;
 };
 
+/** Desktop-only segmented control options (mobile uses a single toggle). */
 const VIEW_OPTIONS: { value: MarkdownView; label: string; icon: ReactNode }[] = [
 	{ value: "edit", label: "Edit", icon: <MdEdit className="h-4 w-4" aria-hidden /> },
 	{
@@ -294,6 +295,16 @@ export function MarkdownEditorPane({
 	const showEditor = view === "edit" || view === "split";
 	const showPreview = view === "preview" || view === "split";
 
+	// Mobile uses a single edit/preview toggle (split is desktop-only).
+	const isPreviewing = view === "preview";
+	const mobileToggleTo: MarkdownView = isPreviewing ? "edit" : "preview";
+	const mobileToggleLabel = isPreviewing ? "Edit" : "Preview";
+	const mobileToggleIcon = isPreviewing ? (
+		<MdEdit className="h-[18px] w-[18px]" aria-hidden />
+	) : (
+		<MdVisibility className="h-[18px] w-[18px]" aria-hidden />
+	);
+
 	const editor = (
 		<div
 			className={cn(
@@ -320,7 +331,13 @@ export function MarkdownEditorPane({
 	);
 
 	const preview = (
-		<div className="flex min-h-0 min-w-0 flex-1 flex-col">
+		<div
+			className={cn(
+				"min-h-0 min-w-0 flex-1 flex-col",
+				// In split mode the preview is hidden on small screens (editor only).
+				view === "split" ? "hidden md:flex" : "flex",
+			)}
+		>
 			<div className="shrink-0 border-b border-primary/10 px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-text-secondary">
 				Preview
 			</div>
@@ -370,8 +387,23 @@ export function MarkdownEditorPane({
 						: null}
 				</div>
 
+				{/* Mobile: single edit/preview toggle. */}
+				<button
+					type="button"
+					onClick={() => onViewChange(mobileToggleTo)}
+					title={mobileToggleLabel}
+					aria-label={mobileToggleLabel}
+					className={cn(
+						"flex h-7 min-w-7 shrink-0 items-center justify-center rounded-md px-1 text-text-secondary transition-colors md:hidden",
+						"hover:bg-background-secondary hover:text-text-primary",
+					)}
+				>
+					{mobileToggleIcon}
+				</button>
+
+				{/* Desktop: full edit / split / preview control. */}
 				<div
-					className="flex shrink-0 rounded-lg border border-primary/15 bg-background-secondary p-0.5"
+					className="hidden shrink-0 rounded-lg border border-primary/15 bg-background-secondary p-0.5 md:flex"
 					role="group"
 					aria-label="Editor view"
 				>
@@ -390,7 +422,7 @@ export function MarkdownEditorPane({
 							title={option.label}
 						>
 							{option.icon}
-							<span className="hidden sm:inline">{option.label}</span>
+							<span>{option.label}</span>
 						</button>
 					))}
 				</div>
