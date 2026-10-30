@@ -3,6 +3,11 @@
 	<head>
 		<meta charset="UTF-8" />
 		<script>
+			try {
+				if (localStorage.getItem("trellix-density") === "compact") {
+					document.documentElement.setAttribute("data-density", "compact");
+				}
+			} catch (e) {}
 			(function () {
 				var key = "trellix-theme";
 				try {

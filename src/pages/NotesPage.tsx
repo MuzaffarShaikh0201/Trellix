@@ -1,564 +1,437 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
+import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { Link, useSearchParams } from "react-router";
 import {
-	useMutation,
-	useQuery,
-	useQueryClient,
-	type QueryKey,
-} from "@tanstack/react-query";
-import { useNavigate } from "react-router";
-import { FaFilter, FaSort } from "react-icons/fa6";
-import { MdAdd } from "react-icons/md";
+	LuLayoutGrid,
+	LuNotebookPen,
+	LuPanelsTopLeft,
+	LuPencil,
+	LuPin,
+	LuPlus,
+	LuSearch,
+} from "react-icons/lu";
 
-import { CreateNoteCard } from "@/components/note/CreateNoteCard";
+import { Page, PageHeader } from "@/components/layout/AppShell";
+import { TopbarActions } from "@/components/layout/TopbarActions";
+import { MarkdownContent } from "@/components/note/MarkdownContent";
 import { NoteCard } from "@/components/note/NoteCard";
-import { NoteCardSkeleton } from "@/components/note/NoteCardSkeleton";
+import { NoteProjectBadge } from "@/components/note/NoteProjectBadge";
 import Button from "@/components/ui/Button";
-import {
-	buttonPrimaryClass,
-	buttonSecondaryClass,
-} from "@/components/ui/buttonStyles";
-import { Pagination } from "@/components/ui/Pagination";
-import { fetchNotes, toggleNotePinned } from "@/lib/api/notes";
-import { fetchProjects } from "@/lib/api/projects";
+import { buttonPrimaryClass, buttonSecondaryClass, iconButtonClass } from "@/components/ui/buttonStyles";
+import { EmptyState, ErrorState, Skeleton, cardClass } from "@/components/ui/Card";
+import { SelectField } from "@/components/ui/Field";
+import { inputClass } from "@/components/ui/fieldStyles";
+import { Segmented } from "@/components/ui/Segmented";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { fetchNote, fetchNotes } from "@/lib/api/notes";
 import { getRequestErrorMessage } from "@/lib/getRequestErrorMessage";
+import { getNoteDisplayTitle, notePreview } from "@/lib/note/noteDisplay";
+import { useTogglePin } from "@/lib/noteQueries";
+import { timeAgo } from "@/lib/project/projectDisplay";
+import { noteKeys, useAllProjects } from "@/lib/queries";
 import { cn } from "@/lib/utils";
-import { showAlert } from "@/services/alertService";
-import type { NoteSortBy, NoteSortOrder } from "@/types/note";
+import type { GetNotesParams, NoteListItem } from "@/types/note";
 
-type NoteTab = "ALL" | "PERSONAL";
+type Layout = "split" | "grid";
+const LAYOUT_KEY = "trellix-notes-layout";
+const PAGE = 30;
 
-const NOTE_TABS: { value: NoteTab; label: string }[] = [
-	{ value: "ALL", label: "All" },
-	{ value: "PERSONAL", label: "Personal" },
-];
-
-const SORT_BY_OPTIONS: { value: NoteSortBy; label: string }[] = [
-	{ value: "updated_at", label: "Recently updated" },
-	{ value: "created_at", label: "Recently created" },
-	{ value: "title", label: "Title" },
-];
-
-const SORT_ORDER_OPTIONS: { value: NoteSortOrder; label: string }[] = [
-	{ value: "asc", label: "Ascending" },
-	{ value: "desc", label: "Descending" },
-];
-
-const DEFAULT_PAGE_LIMIT = 10;
-
-const PAGE_LIMIT_OPTIONS = [6, 8, 10, 12, 16, 20] as const;
-
-const PROJECT_PICKER_QUERY_KEY = ["projects", "picker"] as const;
+function readLayout(): Layout {
+	try {
+		return localStorage.getItem(LAYOUT_KEY) === "grid" ? "grid" : "split";
+	} catch {
+		return "split";
+	}
+}
 
 export function NotesPage() {
-	const queryClient = useQueryClient();
-	const navigate = useNavigate();
-	const [activeTab, setActiveTab] = useState<NoteTab>("ALL");
-	const [projectFilter, setProjectFilter] = useState<string>("ALL");
-	const [sortBy, setSortBy] = useState<NoteSortBy>("updated_at");
-	const [sortOrder, setSortOrder] = useState<NoteSortOrder>("desc");
-	const [page, setPage] = useState(1);
-	const [pageLimit, setPageLimit] = useState<number>(DEFAULT_PAGE_LIMIT);
-	const [filterModalOpen, setFilterModalOpen] = useState(false);
-	const [sortModalOpen, setSortModalOpen] = useState(false);
-	const filterRootRef = useRef<HTMLDivElement>(null);
-	const sortRootRef = useRef<HTMLDivElement>(null);
-	const controlsId = useId();
+	const [sp, setSp] = useSearchParams();
+	const personal = sp.get("tab") === "personal";
+	const projectFilter = personal ? "" : (sp.get("project") ?? "");
+	const selectedId = sp.get("note");
+	const [filter, setFilter] = useState("");
+	const [layout, setLayoutState] = useState<Layout>(readLayout);
+	const wide = useMediaQuery("(min-width: 1024px)");
+	const split = wide && layout === "split";
 
-	const personalOnly = activeTab === "PERSONAL" ? true : undefined;
-	const effectiveProjectId =
-		activeTab === "PERSONAL" || projectFilter === "ALL"
-			? undefined
-			: projectFilter;
-
-	const queryKey = useMemo(
-		() =>
-			[
-				"notes",
-				{
-					tab: activeTab,
-					page,
-					limit: pageLimit,
-					project_id: effectiveProjectId,
-					personal: personalOnly,
-					sort_by: sortBy,
-					sort_order: sortOrder,
-				},
-			] satisfies QueryKey,
-		[
-			activeTab,
-			page,
-			pageLimit,
-			effectiveProjectId,
-			personalOnly,
-			sortBy,
-			sortOrder,
-		],
-	);
-
-	const { data: projectsPickerData, isPending: projectsPickerPending } =
-		useQuery({
-			queryKey: PROJECT_PICKER_QUERY_KEY,
-			queryFn: () =>
-				fetchProjects({
-					limit: 100,
-					sort_by: "title",
-					sort_order: "asc",
-					is_archived: false,
-				}),
-		});
-
-	const projectOptions = useMemo(
-		() =>
-			(projectsPickerData?.projects ?? []).map((p) => ({
-				id: p.id,
-				title: p.title,
-			})),
-		[projectsPickerData?.projects],
-	);
-
-	const projectColorById = useMemo(() => {
-		const map = new Map<string, string | null>();
-		for (const project of projectsPickerData?.projects ?? []) {
-			map.set(project.id, project.color);
+	function setLayout(next: Layout) {
+		setLayoutState(next);
+		try {
+			localStorage.setItem(LAYOUT_KEY, next);
+		} catch {
+			/* storage unavailable */
 		}
-		return map;
-	}, [projectsPickerData?.projects]);
-
-	useEffect(() => {
-		function onPointerDown(event: PointerEvent) {
-			const target = event.target as Node;
-			if (
-				filterModalOpen &&
-				filterRootRef.current &&
-				!filterRootRef.current.contains(target)
-			) {
-				setFilterModalOpen(false);
-			}
-			if (
-				sortModalOpen &&
-				sortRootRef.current &&
-				!sortRootRef.current.contains(target)
-			) {
-				setSortModalOpen(false);
-			}
-		}
-
-		function onKeyDown(event: KeyboardEvent) {
-			if (event.key === "Escape") {
-				setFilterModalOpen(false);
-				setSortModalOpen(false);
-			}
-		}
-
-		document.addEventListener("pointerdown", onPointerDown);
-		document.addEventListener("keydown", onKeyDown);
-		return () => {
-			document.removeEventListener("pointerdown", onPointerDown);
-			document.removeEventListener("keydown", onKeyDown);
-		};
-	}, [filterModalOpen, sortModalOpen]);
-
-	const {
-		data,
-		isPending,
-		isError,
-		error,
-		refetch,
-		isRefetching,
-	} = useQuery({
-		queryKey,
-		queryFn: () =>
-			fetchNotes({
-				page,
-				limit: pageLimit,
-				project_id: effectiveProjectId,
-				personal: personalOnly,
-				sort_by: sortBy,
-				sort_order: sortOrder,
-			}),
-	});
-
-	const pinMutation = useMutation({
-		mutationFn: toggleNotePinned,
-		onMutate: async (noteId: string) => {
-			await queryClient.cancelQueries({ queryKey });
-			const previous = queryClient.getQueryData<typeof data>(queryKey);
-			queryClient.setQueryData<typeof data>(queryKey, (current) => {
-				if (!current) return current;
-				return {
-					...current,
-					notes: current.notes.map((note) =>
-						note.id === noteId
-							? { ...note, is_pinned: !note.is_pinned }
-							: note,
-					),
-				};
-			});
-			return { previous };
-		},
-		onError: (err, _noteId, context) => {
-			if (context?.previous) {
-				queryClient.setQueryData(queryKey, context.previous);
-			}
-			showAlert(
-				"Could not update pin",
-				"error",
-				getRequestErrorMessage(
-					err,
-					"Something went wrong while updating pin status.",
-				),
-			);
-		},
-		onSettled: async () => {
-			await queryClient.invalidateQueries({ queryKey: ["notes"] });
-		},
-	});
-
-	const notes = data?.notes ?? [];
-	const totalItems = data?.total_items ?? 0;
-	const totalPages = Math.max(1, data?.total_pages ?? 1);
-	const currentPage = Math.min(page, totalPages);
-	const startItem =
-		totalItems === 0 ? 0 : (currentPage - 1) * pageLimit + 1;
-	const endItem = Math.min(currentPage * pageLimit, totalItems);
-
-	const canGoPrev = currentPage > 1;
-	const canGoNext = currentPage < totalPages;
-
-	function goToCreate() {
-		setFilterModalOpen(false);
-		setSortModalOpen(false);
-		navigate("/notes/new");
 	}
 
-	const emptyStateMessage =
-		activeTab === "PERSONAL"
-			? "No personal notes found yet."
-			: projectFilter !== "ALL"
-				? "No notes found for this project."
-				: "No notes found yet. Use the card above to create your first one.";
+	function setParam(patch: Record<string, string | null>) {
+		setSp(
+			(prev) => {
+				const next = new URLSearchParams(prev);
+				for (const [k, v] of Object.entries(patch)) {
+					if (v) next.set(k, v);
+					else next.delete(k);
+				}
+				return next;
+			},
+			{ replace: true },
+		);
+	}
 
-	const showCreateCard = activeTab === "ALL";
+	const projects = useAllProjects();
+	const colorById = useMemo(
+		() => new Map((projects.data?.projects ?? []).map((p) => [p.id, p.color])),
+		[projects.data],
+	);
 
-	const panelBarClass =
-		"shrink-0 border-primary/10 bg-tint px-4 py-1 text-[10px] leading-tight text-text-secondary md:px-6 sm:text-xs";
+	// Search runs on the server (title + content) once typing pauses.
+	const search = useDebouncedValue(filter.trim(), 250);
+	const params: GetNotesParams = {
+		q: search || undefined,
+		personal: personal || undefined,
+		project_id: projectFilter || undefined,
+		limit: PAGE,
+		sort_by: "updated_at",
+		sort_order: "desc",
+	};
+	const query = useInfiniteQuery({
+		queryKey: [...noteKeys.all, "infinite", params],
+		queryFn: ({ pageParam }) => fetchNotes({ ...params, page: pageParam }),
+		initialPageParam: 1,
+		getNextPageParam: (last) => (last.current_page < last.total_pages ? last.current_page + 1 : undefined),
+		placeholderData: keepPreviousData,
+	});
+	const pin = useTogglePin();
+
+	const all = useMemo(() => query.data?.pages.flatMap((p) => p.notes) ?? [], [query.data]);
+	const total = query.data?.pages[0]?.total_items ?? 0;
+	const visible = all;
+	const activeId = selectedId && all.some((n) => n.id === selectedId) ? selectedId : all[0]?.id;
+
+	const projectOptions = [
+		{ value: "", label: "All projects" },
+		...(projects.data?.projects ?? []).map((p) => ({ value: p.id, label: p.title })),
+	];
+
+	const controls = (
+		<>
+			<Segmented
+				ariaLabel="Which notes"
+				value={personal ? "personal" : "all"}
+				onChange={(v) => setParam({ tab: v === "personal" ? "personal" : null, project: null, note: null })}
+				options={[
+					{ value: "all", label: "All" },
+					{ value: "personal", label: "Personal" },
+				]}
+			/>
+			<SelectField
+				aria-label="Filter by project"
+				value={projectFilter}
+				disabled={personal}
+				onChange={(v) => setParam({ project: v || null, note: null })}
+				options={projectOptions}
+				selectClassName="py-1.5 text-xs"
+			/>
+		</>
+	);
+
+	const layoutToggle = (
+		<Segmented
+			iconOnly
+			ariaLabel="Layout"
+			value={layout}
+			onChange={setLayout}
+			className="max-lg:hidden"
+			options={[
+				{ value: "split", title: "Two panes", icon: <LuPanelsTopLeft className="size-4" /> },
+				{ value: "grid", title: "Grid", icon: <LuLayoutGrid className="size-4" /> },
+			]}
+		/>
+	);
+
+	const loadMore = query.hasNextPage ? (
+		<div className="flex justify-center p-3">
+			<Button variant="ghost" onClick={() => void query.fetchNextPage()} loading={query.isFetchingNextPage}>
+				Load more
+			</Button>
+		</div>
+	) : null;
+
+	const errorBox = query.isError ? (
+		<ErrorState
+			className="m-3"
+			title="Could not load notes"
+			message={getRequestErrorMessage(query.error, "Something went wrong while loading notes.")}
+			onRetry={() => void query.refetch()}
+			retrying={query.isRefetching}
+		/>
+	) : null;
+
+	const empty = (
+		<EmptyState
+			icon={<LuNotebookPen />}
+			title={filter ? "No matching notes" : "No notes here yet"}
+			description={
+				filter
+					? "Try a different word or another project."
+					: "Capture meeting notes, specs and ideas in Markdown."
+			}
+			action={
+				filter ? null : (
+					<Link to="/notes/new" className={buttonPrimaryClass()}>
+						<LuPlus className="size-4" />
+						New note
+					</Link>
+				)
+			}
+		/>
+	);
+
+	if (!split) {
+		const groups = [
+			{ title: "Pinned", items: visible.filter((n) => n.is_pinned) },
+			{ title: "Notes", items: visible.filter((n) => !n.is_pinned) },
+		];
+		return (
+			<Page>
+				<TopbarActions>{layoutToggle}</TopbarActions>
+				<PageHeader
+					title="Notes"
+					subtitle={query.isPending ? "Loading…" : `${total} notes`}
+					actions={
+						<Link to="/notes/new" className={buttonPrimaryClass()}>
+							<LuPlus className="size-4" />
+							New note
+						</Link>
+					}
+				/>
+				<div className="mt-5 grid gap-2 sm:flex sm:items-center">
+					<FilterInput value={filter} onChange={setFilter} className="sm:w-64" />
+					<div className="flex gap-2 [&>*:last-child]:flex-1 sm:[&>*:last-child]:w-52 sm:[&>*:last-child]:flex-none">
+						{controls}
+					</div>
+				</div>
+				{errorBox}
+				{query.isPending ? (
+					<div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+						{Array.from({ length: 6 }, (_, i) => (
+							<Skeleton key={i} className="h-36 rounded-xl" />
+						))}
+					</div>
+				) : visible.length === 0 ? (
+					<div className={cn(cardClass, "mt-6")}>{empty}</div>
+				) : (
+					groups.map((g) =>
+						g.items.length ? (
+							<section key={g.title}>
+								<p className="mt-6 mb-2 text-[11px] font-semibold tracking-wider text-muted uppercase">{g.title}</p>
+								<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+									{g.items.map((n) => (
+										<NoteCard
+											key={n.id}
+											note={n}
+											projectColor={n.project ? colorById.get(n.project.id) : undefined}
+											onTogglePinned={(id) => pin.mutate(id)}
+											pinPending={pin.isPending && pin.variables === n.id}
+										/>
+									))}
+								</div>
+							</section>
+						) : null,
+					)
+				)}
+				{loadMore}
+			</Page>
+		);
+	}
 
 	return (
-		<section className="flex min-h-0 flex-1 flex-col gap-4">
-			<header>
-				<h1 className="text-2xl font-bold text-text-primary">Notes</h1>
-				<p className="mt-1 text-sm text-text-secondary">
-					Capture ideas, meeting notes, and documentation for your
-					projects.
-				</p>
-				<div className="mt-3 flex items-center justify-between gap-3">
-					<div className="flex items-center gap-1">
-						{NOTE_TABS.map((tab) => {
-							const isActive = activeTab === tab.value;
-							return (
-								<button
-									key={tab.value}
-									type="button"
-									onClick={() => {
-										setActiveTab(tab.value);
-										setPage(1);
-										if (tab.value === "PERSONAL") {
-											setProjectFilter("ALL");
-										}
-									}}
-									className={cn(
-										"border-b-2 px-3 py-2 text-sm font-medium transition-colors",
-										isActive
-											? "border-primary text-primary"
-											: "border-transparent text-text-secondary hover:text-text-primary",
-									)}
-									aria-pressed={isActive}
-								>
-									{tab.label}
-								</button>
-							);
-						})}
+		<div className="flex min-h-0 flex-1">
+			<TopbarActions>{layoutToggle}</TopbarActions>
+			<div className="flex w-80 shrink-0 flex-col border-r border-line bg-surface">
+				<div className="space-y-2 border-b border-line p-3">
+					<div className="flex items-center gap-2">
+						<FilterInput value={filter} onChange={setFilter} className="flex-1" />
+						<Link to="/notes/new" className={buttonPrimaryClass("size-8 p-0")} aria-label="New note" title="New note">
+							<LuPlus className="size-4" />
+						</Link>
 					</div>
-					<div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-						<button
-							type="button"
-							aria-label="Create Note"
-							title="Create Note"
-							onClick={goToCreate}
-							className={cn(
-								buttonPrimaryClass("h-8 w-8 shrink-0 p-0 sm:hidden"),
-							)}
-						>
-							<MdAdd className="h-4 w-4" aria-hidden />
-						</button>
-						<Button
-							title="Create Note"
-							variant="primary"
-							imgSrc={<MdAdd className="h-4 w-4" aria-hidden />}
-							className="hidden w-auto sm:inline-flex"
-							onClick={goToCreate}
-						/>
-					</div>
+					{controls}
 				</div>
-			</header>
-
-			<div
-				className={cn(
-					"flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-primary/10",
-					"bg-background-secondary",
-				)}
-			>
-				<div
-					className={cn(
-						panelBarClass,
-						"relative z-10 flex flex-wrap items-center justify-between gap-3 border-b shadow-panel-below",
-					)}
-				>
-					<div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-						<span className="whitespace-nowrap tabular-nums">
-							{isPending ? "Loading notes..." : `${totalItems} total`}
-						</span>
-						{isRefetching && !isPending ? (
-							<span>Refreshing…</span>
-						) : null}
-					</div>
-					<div className="ml-auto flex shrink-0 items-center justify-end gap-1">
-						<div ref={filterRootRef} className="relative">
-							<button
-								type="button"
-								onClick={() => {
-									setFilterModalOpen((v) => !v);
-									setSortModalOpen(false);
-								}}
-								disabled={activeTab === "PERSONAL"}
-								className={cn(
-									"flex h-6 w-6 cursor-pointer items-center justify-center text-text-secondary transition-colors hover:text-text-primary",
-									activeTab === "PERSONAL" &&
-										"cursor-not-allowed opacity-40",
-								)}
-								title="Open filters"
-								aria-label="Open filters"
-								aria-haspopup="dialog"
-								aria-expanded={filterModalOpen}
-								aria-controls={
-									filterModalOpen
-										? `${controlsId}-filter-modal`
-										: undefined
-								}
-							>
-								<FaFilter className="h-4 w-4" aria-hidden />
-							</button>
-							{filterModalOpen ? (
-								<div
-									id={`${controlsId}-filter-modal`}
-									role="dialog"
-									aria-label="Filter notes"
-									className="absolute right-0 top-full z-50 mt-2 w-[min(100vw-2rem,19rem)] rounded-xl border border-primary/10 bg-background-secondary p-4 shadow-lg"
-								>
-									<p className="text-sm font-semibold text-text-primary">
-										Filters
-									</p>
-									<div className="mt-3 space-y-3">
-										<div>
-											<label className="text-xs font-medium uppercase tracking-wide text-text-secondary">
-												Project
-											</label>
-											<select
-												value={projectFilter}
-												onChange={(e) => {
-													setProjectFilter(e.target.value);
-													setPage(1);
-												}}
-												disabled={projectsPickerPending}
-												className={cn(
-													"mt-1.5 h-9 w-full cursor-pointer rounded-lg border border-primary/15 bg-tint px-3 text-sm text-text-primary",
-													"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
-												)}
-												aria-label="Filter notes by project"
-											>
-												<option value="ALL">All projects</option>
-												{projectOptions.map((project) => (
-													<option key={project.id} value={project.id}>
-														{project.title}
-													</option>
-												))}
-											</select>
-										</div>
-									</div>
+				<div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto pb-3">
+					{errorBox}
+					{query.isPending ? (
+						<div className="space-y-4 p-4">
+							{Array.from({ length: 5 }, (_, i) => (
+								<div key={i} className="space-y-1.5">
+									<Skeleton className="h-3.5 w-2/3" />
+									<Skeleton className="h-3 w-full" />
 								</div>
-							) : null}
+							))}
 						</div>
-						<div ref={sortRootRef} className="relative">
-							<button
-								type="button"
-								onClick={() => {
-									setSortModalOpen((v) => !v);
-									setFilterModalOpen(false);
-								}}
-								className="flex h-6 w-6 cursor-pointer items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
-								title="Open sorting options"
-								aria-label="Open sorting options"
-								aria-haspopup="dialog"
-								aria-expanded={sortModalOpen}
-								aria-controls={
-									sortModalOpen ? `${controlsId}-sort-modal` : undefined
-								}
-							>
-								<FaSort className="h-4 w-4" aria-hidden />
-							</button>
-							{sortModalOpen ? (
-								<div
-									id={`${controlsId}-sort-modal`}
-									role="dialog"
-									aria-label="Sort notes"
-									className="absolute right-0 top-full z-50 mt-2 w-[min(100vw-2rem,19rem)] rounded-xl border border-primary/10 bg-background-secondary p-4 shadow-lg"
-								>
-									<p className="text-sm font-semibold text-text-primary">
-										Sorting
-									</p>
-									<div className="mt-3 space-y-3">
-										<div>
-											<label className="text-xs font-medium uppercase tracking-wide text-text-secondary">
-												Sort by
-											</label>
-											<select
-												value={sortBy}
-												onChange={(e) => {
-													setSortBy(e.target.value as NoteSortBy);
-													setPage(1);
-												}}
-												className={cn(
-													"mt-1.5 h-9 w-full cursor-pointer rounded-lg border border-primary/15 bg-tint px-3 text-sm text-text-primary",
-													"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
-												)}
-												aria-label="Sort notes by field"
-											>
-												{SORT_BY_OPTIONS.map((option) => (
-													<option key={option.value} value={option.value}>
-														{option.label}
-													</option>
-												))}
-											</select>
-										</div>
-										<div>
-											<label className="text-xs font-medium uppercase tracking-wide text-text-secondary">
-												Order
-											</label>
-											<select
-												value={sortOrder}
-												onChange={(e) => {
-													setSortOrder(
-														e.target.value as NoteSortOrder,
-													);
-													setPage(1);
-												}}
-												className={cn(
-													"mt-1.5 h-9 w-full cursor-pointer rounded-lg border border-primary/15 bg-tint px-3 text-sm text-text-primary",
-													"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
-												)}
-												aria-label="Sort order"
-											>
-												{SORT_ORDER_OPTIONS.map((option) => (
-													<option key={option.value} value={option.value}>
-														{option.label}
-													</option>
-												))}
-											</select>
-										</div>
-									</div>
-								</div>
-							) : null}
-						</div>
-					</div>
-				</div>
-
-				<div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-					{isError ? (
-						<div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
-							<p className="text-sm font-medium text-red-600 dark:text-red-400">
-								Could not load notes
-							</p>
-							<p className="mt-1 text-sm text-text-secondary">
-								{getRequestErrorMessage(
-									error,
-									"Something went wrong while loading notes.",
-								)}
-							</p>
-							<button
-								type="button"
-								onClick={() => void refetch()}
-								className={cn("mt-3", buttonSecondaryClass())}
-							>
-								Try again
-							</button>
-						</div>
+					) : visible.length === 0 ? (
+						empty
 					) : (
 						<>
-							<div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-								{isPending
-									? Array.from({ length: pageLimit }, (_, idx) => (
-											<NoteCardSkeleton key={`note-skeleton-${idx}`} />
-										))
-									: (
-										<>
-											{notes.map((note) => (
-												<NoteCard
-													key={note.id}
-													note={note}
-													projectColor={
-														note.project
-															? projectColorById.get(note.project.id)
-															: undefined
-													}
-													onTogglePinned={(noteId) =>
-														pinMutation.mutate(noteId)
-													}
-													pinPending={
-														pinMutation.isPending &&
-														pinMutation.variables === note.id
-													}
-												/>
-											))}
-											{showCreateCard ? (
-												<CreateNoteCard onCreate={goToCreate} />
-											) : null}
-										</>
-									)}
-							</div>
-
-							{!isPending && notes.length === 0 ? (
-								<p className="mt-4 text-sm text-text-secondary">
-									{emptyStateMessage}
-								</p>
-							) : null}
+							<NoteList title="Pinned" notes={visible.filter((n) => n.is_pinned)} activeId={activeId} colorById={colorById} />
+							<NoteList title="Notes" notes={visible.filter((n) => !n.is_pinned)} activeId={activeId} colorById={colorById} />
+							{loadMore}
 						</>
 					)}
 				</div>
-
-				{!isError && !isPending ? (
-					<Pagination
-						className={cn(
-							panelBarClass,
-							"relative z-10 border-t shadow-panel-above",
-						)}
-						startItem={startItem}
-						endItem={endItem}
-						totalItems={totalItems}
-						canGoPrev={canGoPrev}
-						canGoNext={canGoNext}
-						pageLimit={pageLimit}
-						pageLimitOptions={[...PAGE_LIMIT_OPTIONS]}
-						onPageLimitChange={(limit) => {
-							setPageLimit(limit);
-							setPage(1);
-						}}
-						onFirstPage={() => setPage(1)}
-						onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
-						onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
-						onLastPage={() => setPage(totalPages)}
-					/>
-				) : null}
 			</div>
-		</section>
+			<div className="custom-scrollbar min-w-0 flex-1 overflow-y-auto">
+				{activeId ? (
+					<NoteReader
+						id={activeId}
+						color={colorById}
+						onTogglePin={(id) => pin.mutate(id)}
+					/>
+				) : query.isPending ? null : (
+					<div className="grid h-full place-items-center text-sm text-muted">Select a note to read it.</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+function FilterInput({ value, onChange, className }: { value: string; onChange: (v: string) => void; className?: string }) {
+	return (
+		<div className={cn("relative", className)}>
+			<LuSearch className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted" />
+			<input
+				value={value}
+				onChange={(e) => onChange(e.target.value)}
+				placeholder="Search notes"
+				aria-label="Search notes"
+				className={cn(inputClass, "py-1.5 pl-8 text-xs")}
+			/>
+		</div>
+	);
+}
+
+function NoteList({
+	title,
+	notes,
+	activeId,
+	colorById,
+}: {
+	title: string;
+	notes: NoteListItem[];
+	activeId: string | undefined;
+	colorById: Map<string, string | null>;
+}) {
+	const [sp] = useSearchParams();
+	if (!notes.length) return null;
+	return (
+		<>
+			<p className="px-3 pt-3 pb-1 text-[11px] font-semibold tracking-wider text-muted uppercase">{title}</p>
+			{notes.map((n) => {
+				const next = new URLSearchParams(sp);
+				next.set("note", n.id);
+				const active = n.id === activeId;
+				return (
+					<Link
+						key={n.id}
+						to={`/notes?${next.toString()}`}
+						replace
+						aria-current={active ? "true" : undefined}
+						className={cn(
+							"mx-1.5 block rounded-lg px-2.5 py-2.5 transition-colors",
+							active ? "bg-primary/10" : "hover:bg-surface-2",
+						)}
+					>
+						<div className="flex items-center gap-2">
+							<p className={cn("flex-1 truncate text-sm font-medium", active && "text-primary")}>
+								{getNoteDisplayTitle(n)}
+							</p>
+							<span className="shrink-0 text-[10px] text-muted">{timeAgo(n.updated_at)}</span>
+						</div>
+						{notePreview(n) ? (
+							<p className="mt-0.5 truncate text-xs text-muted">{notePreview(n)}</p>
+						) : null}
+						<NoteProjectBadge
+							className="mt-1.5"
+							project={n.project}
+							color={n.project ? colorById.get(n.project.id) : undefined}
+						/>
+					</Link>
+				);
+			})}
+		</>
+	);
+}
+
+function NoteReader({
+	id,
+	color,
+	onTogglePin,
+}: {
+	id: string;
+	color: Map<string, string | null>;
+	onTogglePin: (id: string) => void;
+}) {
+	const { data: note, isPending, isError, error, refetch } = useQuery({
+		queryKey: noteKeys.detail(id),
+		queryFn: () => fetchNote(id),
+	});
+
+	if (isError) {
+		return (
+			<ErrorState
+				className="m-8"
+				title="Could not load this note"
+				message={getRequestErrorMessage(error, "Please try again.")}
+				onRetry={() => void refetch()}
+			/>
+		);
+	}
+	if (isPending || !note) {
+		return (
+			<div className="mx-auto max-w-3xl space-y-3 px-8 py-10">
+				<Skeleton className="h-7 w-1/2" />
+				<Skeleton className="h-4 w-full" />
+				<Skeleton className="h-4 w-5/6" />
+			</div>
+		);
+	}
+
+	return (
+		<article>
+			<div className="sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-bg/85 px-8 py-2.5 backdrop-blur">
+				<NoteProjectBadge project={note.project} color={note.project ? color.get(note.project.id) : undefined} />
+				<span className="text-xs text-muted">Edited {timeAgo(note.updated_at)}</span>
+				<div className="ml-auto flex items-center gap-1">
+					<button
+						type="button"
+						onClick={() => onTogglePin(note.id)}
+						aria-pressed={note.is_pinned}
+						aria-label={note.is_pinned ? "Unpin note" : "Pin note"}
+						className={iconButtonClass(cn("size-8", note.is_pinned && "text-primary"))}
+					>
+						<LuPin className={cn("size-4", note.is_pinned && "fill-current")} />
+					</button>
+					<Link to={`/notes/${note.id}`} className={buttonSecondaryClass("py-1.5")}>
+						<LuPencil className="size-3.5" />
+						Edit
+					</Link>
+				</div>
+			</div>
+			<div className="mx-auto max-w-3xl px-8 py-8">
+				{/^#\s/.test(note.content?.trimStart() ?? "") ? null : (
+					<h1 className="mb-4 text-2xl font-semibold tracking-tight">{getNoteDisplayTitle(note)}</h1>
+				)}
+				{note.content?.trim() ? (
+					<MarkdownContent content={note.content} className="text-[15px]" />
+				) : (
+					<p className="text-sm text-muted">
+						This note is empty.{" "}
+						<Link to={`/notes/${note.id}`} className="text-primary hover:underline">
+							Start writing
+						</Link>
+					</p>
+				)}
+			</div>
+		</article>
 	);
 }

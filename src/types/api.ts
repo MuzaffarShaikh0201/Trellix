@@ -11,12 +11,15 @@ export type HttpValidationErrorBody = {
 export class ApiError extends Error {
 	readonly status: number;
 	readonly body: unknown;
+	/** Seconds to wait before retrying a 429, when known. */
+	readonly retryAfter: number | null;
 
-	constructor(status: number, body: unknown, message?: string) {
+	constructor(status: number, body: unknown, message?: string, retryAfter: number | null = null) {
 		super(message ?? `Request failed with status ${status}`);
 		this.name = "ApiError";
 		this.status = status;
 		this.body = body;
+		this.retryAfter = retryAfter;
 	}
 }
 

@@ -1,83 +1,47 @@
-import {
-	type ComponentPropsWithoutRef,
-	isValidElement,
-	type ReactNode,
-} from "react";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 import {
+	buttonDangerClass,
+	buttonGhostClass,
 	buttonPrimaryClass,
 	buttonSecondaryClass,
 } from "@/components/ui/buttonStyles";
+import { Spinner } from "@/components/ui/Spinner";
 import { cn } from "@/lib/utils";
 
-export type ButtonProps = Omit<
-	ComponentPropsWithoutRef<"button">,
-	"children"
-> & {
-	title: string;
-	/** @deprecated Use `variant` instead. */
-	fill?: boolean;
-	variant?: "primary" | "secondary";
-	imgSrc?: string | ReactNode;
-	loading?: boolean;
-	loader?: ReactNode;
+const VARIANTS = {
+	primary: buttonPrimaryClass,
+	secondary: buttonSecondaryClass,
+	ghost: buttonGhostClass,
+	danger: buttonDangerClass,
 };
 
-function resolveVariant(
-	variant: ButtonProps["variant"],
-	fill: boolean,
-): "primary" | "secondary" {
-	if (variant === "primary" || variant === "secondary") return variant;
-	return fill ? "primary" : "secondary";
-}
+export type ButtonProps = ComponentPropsWithoutRef<"button"> & {
+	variant?: keyof typeof VARIANTS;
+	icon?: ReactNode;
+	loading?: boolean;
+};
 
 export default function Button({
-	title,
-	fill = true,
-	variant,
+	variant = "primary",
 	type = "button",
-	imgSrc,
-	disabled = false,
+	icon,
 	loading = false,
-	loader,
+	disabled,
 	className,
+	children,
 	...props
 }: ButtonProps) {
-	const resolvedVariant = resolveVariant(variant, fill);
-	const showLoaderOnly = Boolean(loading && loader);
-	const isDisabled = disabled || loading;
-
-	const visual =
-		typeof imgSrc === "string" && imgSrc.length > 0 ? (
-			<img src={imgSrc} alt="" className="h-4 w-auto shrink-0" />
-		) : isValidElement(imgSrc) ? (
-			imgSrc
-		) : null;
-
 	return (
 		<button
 			type={type}
-			disabled={isDisabled}
-			aria-busy={showLoaderOnly || undefined}
-			className={cn(
-				"w-full",
-				resolvedVariant === "primary"
-					? buttonPrimaryClass()
-					: buttonSecondaryClass(),
-				className,
-			)}
+			disabled={disabled || loading}
+			aria-busy={loading || undefined}
+			className={cn(VARIANTS[variant](), className)}
 			{...props}
 		>
-			{showLoaderOnly ? (
-				<span className="flex items-center justify-center" aria-hidden>
-					{loader}
-				</span>
-			) : (
-				<>
-					<span>{title}</span>
-					{visual}
-				</>
-			)}
+			{loading ? <Spinner className="size-4" /> : icon}
+			{children}
 		</button>
 	);
 }

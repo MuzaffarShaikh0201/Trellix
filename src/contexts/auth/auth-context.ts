@@ -1,6 +1,6 @@
 import { createContext } from "react";
 
-import type { LoginParams, MessageResponse, RegisterParams, User } from "@/types/auth";
+import type { LoginParams, RegisterParams, RegisterResponse, User } from "@/types/auth";
 
 export type AuthContextValue = {
 	user: User | null;
@@ -11,7 +11,7 @@ export type AuthContextValue = {
 	isAuthenticated: boolean;
 	login: (params: LoginParams) => Promise<void>;
 	logout: () => Promise<void>;
-	register: (params: RegisterParams) => Promise<MessageResponse>;
+	register: (params: RegisterParams) => Promise<RegisterResponse>;
 	refreshSession: () => Promise<void>;
 	reloadUser: () => Promise<void>;
 };

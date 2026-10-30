@@ -1,112 +1,144 @@
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
+
+/* `dark:` follows the in-app theme (data-theme), not only the OS setting. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @layer base {
 	:root {
 		color-scheme: light;
 
-		--color-primary: #3b82f6;
+		--bg: #f6f8fb;
+		--surface: #ffffff;
+		--surface-2: #f1f4f9;
+		--line: #e4e9f0;
+		--fg: #0f172a;
+		--muted: #64748b;
 
-		--background-primary: #f8fafc;
-		--background-secondary: #ffffff;
-		--text-primary: #0f172a;
-		--text-secondary: #8a909e;
-		--color-tint: #f3f6fd;
+		/* Floating surfaces (dialogs, menus, toasts): solid panel + one soft shadow. */
+		--overlay: #ffffff;
+		--overlay-shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 24px -8px rgb(15 23 42 / 0.16);
+		--backdrop: rgb(15 23 42 / 0.45);
 	}
 
 	[data-theme="dark"] {
 		color-scheme: dark;
 
-		--background-primary: #11192c;
-		--background-secondary: #141d33;
-		--text-primary: #ffffff;
-		--text-secondary: #8a909e;
-		--color-tint: #1f2a42;
+		--bg: #0d1424;
+		--surface: #121b2e;
+		--surface-2: #19243b;
+		--line: #24314b;
+		--fg: #e8edf6;
+		--muted: #8b97ad;
+
+		--overlay: #172238;
+		--overlay-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px -8px rgb(0 0 0 / 0.55);
+		--backdrop: rgb(2 6 16 / 0.7);
 	}
 }
 
-@theme {
-	--color-primary: var(--color-primary);
+@theme inline {
+	--color-primary: #3b82f6;
+	--color-primary-strong: #2563eb;
 
-	--color-background-primary: var(--background-primary);
-	--color-background-secondary: var(--background-secondary);
-	--color-text-primary: var(--text-primary);
-	--color-text-secondary: var(--text-secondary);
-	--color-tint: var(--color-tint);
+	--color-bg: var(--bg);
+	--color-surface: var(--surface);
+	--color-surface-2: var(--surface-2);
+	--color-line: var(--line);
+	--color-fg: var(--fg);
+	--color-muted: var(--muted);
+	--color-overlay: var(--overlay);
+	--color-backdrop: var(--backdrop);
+	--shadow-overlay: var(--overlay-shadow);
 
-	/* Type scale: ~90% of default; ratios between steps unchanged. */
-	--text-xs: 0.675rem;
-	--text-xs--line-height: 0.9rem;
-	--text-sm: 0.7875rem;
-	--text-sm--line-height: 1.125rem;
-	--text-base: 0.9rem;
-	--text-base--line-height: 1.35rem;
-	--text-lg: 1.0125rem;
-	--text-lg--line-height: 1.575rem;
-	--text-xl: 1.125rem;
-	--text-xl--line-height: 1.575rem;
-	--text-2xl: 1.35rem;
-	--text-2xl--line-height: 1.8rem;
-	--text-3xl: 1.6875rem;
-	--text-3xl--line-height: 2.025rem;
-	--text-4xl: 2.025rem;
-	--text-4xl--line-height: 2.25rem;
-	--text-5xl: 2.7rem;
-	--text-5xl--line-height: 1;
-	--text-6xl: 3.375rem;
-	--text-6xl--line-height: 1;
-	--text-7xl: 4.05rem;
-	--text-7xl--line-height: 1;
-	--text-8xl: 5.4rem;
-	--text-8xl--line-height: 1;
-	--text-9xl: 7.2rem;
-	--text-9xl--line-height: 1;
+	/* Legacy aliases so older markup picks up the new palette. */
+	--color-background-primary: var(--bg);
+	--color-background-secondary: var(--surface);
+	--color-text-primary: var(--fg);
+	--color-text-secondary: var(--muted);
+	--color-tint: var(--surface-2);
 
-	/* Header app title — keeps pre-scale lg size. */
+	--font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+	--font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
 	--text-app-title: 1.125rem;
 	--text-app-title--line-height: 1.75rem;
+
+	--animate-pop: pop 0.16s ease-out;
+	--animate-fade: fade 0.15s ease-out;
+	--animate-sheet: sheet 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+	@keyframes pop {
+		from {
+			opacity: 0;
+			transform: translateY(6px) scale(0.98);
+		}
+		to {
+			opacity: 1;
+			transform: none;
+		}
+	}
+	@keyframes fade {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+	@keyframes sheet {
+		from {
+			transform: translateY(100%);
+		}
+		to {
+			transform: none;
+		}
+	}
 }
 
-* {
-	font-family: "Poppins", sans-serif;
-	box-sizing: border-box;
+/* Compact density: every size is rem-based, so a smaller root tightens the whole UI. */
+html[data-density="compact"] {
+	font-size: 87.5%;
 }
 
 body {
-	background-color: var(--color-background-primary);
-	color: var(--text-primary);
-	font-size: var(--text-base);
-	line-height: var(--text-base--line-height);
+	background-color: var(--bg);
+	color: var(--fg);
+	font-family: var(--font-sans);
+	-webkit-font-smoothing: antialiased;
 }
 
 .custom-scrollbar {
 	scrollbar-width: thin;
-	scrollbar-color: var(--text-secondary) var(--background-secondary);
+	scrollbar-color: var(--line) transparent;
 }
 
 @layer utilities {
-	.shadow-panel-below {
-		box-shadow: 0 4px 8px -4px rgb(15 23 42 / 0.07);
-	}
-
-	[data-theme="dark"] .shadow-panel-below {
-		box-shadow: 0 4px 10px -4px rgb(0 0 0 / 0.28);
-	}
-
-	.shadow-panel-above {
-		box-shadow: 0 -4px 8px -4px rgb(15 23 42 / 0.07);
-	}
-
-	[data-theme="dark"] .shadow-panel-above {
-		box-shadow: 0 -4px 10px -4px rgb(0 0 0 / 0.28);
-	}
-
-	/* Native date/datetime picker icon — hidden when a custom icon is shown. */
+	/* Native date picker icon — hidden when a custom icon is shown. */
 	.input-hide-date-picker::-webkit-calendar-picker-indicator {
 		display: none;
 		-webkit-appearance: none;
 		appearance: none;
 	}
+}
+
+@keyframes toast-progress {
+	from {
+		transform: scaleX(1);
+	}
+	to {
+		transform: scaleX(0);
+	}
+}
+
+/* Task list items: checkbox instead of a bullet. */
+.markdown-body li:has(> input[type="checkbox"]) {
+	list-style: none;
+	margin-left: -1.25rem;
+}
+.markdown-body input[type="checkbox"] {
+	accent-color: #3b82f6;
+	margin-right: 0.4rem;
 }
 
 /* Markdown code-block syntax highlighting (rehype-highlight / highlight.js).

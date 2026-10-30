@@ -11,6 +11,7 @@ import { useNavigate } from "react-router";
 import { AuthContext } from "@/contexts/auth/auth-context";
 import { loginUser, logoutUser, refreshTokens, registerUser } from "@/lib/api/auth";
 import { setSessionExpiredNotifier } from "@/lib/auth/session-expired";
+import { startSessionKeepAlive } from "@/lib/auth/sessionKeepAlive";
 import { fetchCurrentUser } from "@/lib/api/user";
 import { AUTH_ROUTE_PATHS } from "@/lib/auth/auth-routes";
 import {
@@ -72,6 +73,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		});
 		return () => setSessionExpiredNotifier(null);
 	}, [navigate, queryClient]);
+
+	// Renew the access token before it expires so active users aren't logged out.
+	useEffect(() => {
+		if (!hasSession) return;
+		return startSessionKeepAlive();
+	}, [hasSession]);
 
 	useEffect(() => {
 		if (!hasSession) {

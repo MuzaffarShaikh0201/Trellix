@@ -1,71 +1,38 @@
-import { Link } from "react-router";
-import { MdFolder } from "react-icons/md";
+import { LuUser } from "react-icons/lu";
 
-import { getNoteProjectLabel } from "@/lib/note/noteDisplay";
+import { projectColor } from "@/lib/project/projectDisplay";
 import { cn } from "@/lib/utils";
-import type { NoteListItem } from "@/types/note";
-
-const noteProjectChipClass = cn(
-	"inline-flex w-fit max-w-[70%] min-w-0 items-center gap-1.5 overflow-hidden rounded px-2.5 py-1",
-	"bg-tint text-xs font-medium text-text-primary",
-);
+import type { NoteProjectRef } from "@/types/note";
 
 type NoteProjectBadgeProps = {
-	note: NoteListItem;
-	/** Project accent color from GET /project (when available). */
-	projectColor?: string | null;
+	project: NoteProjectRef | null | undefined;
+	/** Project color from GET /project when known. */
+	color?: string | null;
 	className?: string;
 };
 
-export function NoteProjectBadge({
-	note,
-	projectColor,
-	className,
-}: NoteProjectBadgeProps) {
-	const label = getNoteProjectLabel(note);
-	const hasProject = Boolean(note.project);
-	const accent = projectColor?.trim();
-
-	const content = (
-		<>
-			<MdFolder
-				className={cn(
-					"size-4 shrink-0",
-					!hasProject && "text-text-secondary",
-					hasProject && !accent && "text-primary",
-				)}
-				style={hasProject && accent ? { color: accent } : undefined}
-				aria-hidden
-			/>
-			<span className="min-w-0 truncate">{label}</span>
-		</>
+/** "Project name" chip with its color, or "Personal" for notes without a project. */
+export function NoteProjectBadge({ project, color, className }: NoteProjectBadgeProps) {
+	const cls = cn(
+		"inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] font-medium text-muted",
+		className,
 	);
-
-	if (hasProject && note.project) {
+	if (!project) {
 		return (
-			<Link
-				to={`/projects/${note.project.id}`}
-				onClick={(e) => e.stopPropagation()}
-				className={cn(
-					noteProjectChipClass,
-					"cursor-pointer transition-opacity hover:opacity-90",
-					className,
-				)}
-				title={label}
-				aria-label={`Open project ${label}`}
-			>
-				{content}
-			</Link>
+			<span className={cls}>
+				<LuUser className="size-3 shrink-0" aria-hidden />
+				Personal
+			</span>
 		);
 	}
-
 	return (
-		<span
-			className={cn(noteProjectChipClass, className)}
-			title="No project"
-			aria-label="No project"
-		>
-			{content}
+		<span className={cls} title={project.title}>
+			<span
+				aria-hidden
+				className="size-2 shrink-0 rounded-sm"
+				style={{ background: projectColor({ id: project.id, color }) }}
+			/>
+			<span className="truncate">{project.title}</span>
 		</span>
 	);
 }

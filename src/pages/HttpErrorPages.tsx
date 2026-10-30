@@ -1,7 +1,10 @@
 import { Link, useNavigate } from "react-router";
+import { LuArrowLeft, LuMoon, LuSun } from "react-icons/lu";
 
+import { AppBrand } from "@/components/layout/AppBrand";
 import Button from "@/components/ui/Button";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { buttonPrimaryClass, iconButtonClass } from "@/components/ui/buttonStyles";
+import { useTheme } from "@/contexts/theme/useTheme";
 
 type HttpErrorShellProps = {
 	code: string;
@@ -11,58 +14,34 @@ type HttpErrorShellProps = {
 
 function HttpErrorShell({ code, title, description }: HttpErrorShellProps) {
 	const navigate = useNavigate();
+	const { resolvedTheme, toggleTheme } = useTheme();
 
 	return (
-		<div className="min-h-dvh bg-background-primary">
-			<header className="sticky top-0 z-10 border-b border-tint bg-background-secondary/95 backdrop-blur-sm">
-				<div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
-					<Link
-						to="/"
-						className="flex items-center gap-2 text-text-primary"
-					>
-						<img
-							src="/layers.svg"
-							alt=""
-							width={32}
-							height={32}
-							className="size-8 shrink-0"
-						/>
-						<span className="text-lg font-bold tracking-tight">
-							Trellix
-						</span>
-					</Link>
-					<ThemeToggle />
-				</div>
-			</header>
-
-			<main className="mx-auto flex min-h-[calc(100dvh-4.5rem)] max-w-lg flex-col items-center justify-center px-5 py-16 text-center sm:px-8">
-				<p
-					className="text-7xl font-bold tabular-nums text-primary sm:text-8xl"
-					aria-hidden="true"
+		<div className="flex min-h-dvh flex-col bg-bg">
+			<header className="flex items-center justify-between p-5">
+				<AppBrand />
+				<button
+					type="button"
+					onClick={toggleTheme}
+					className={iconButtonClass()}
+					aria-label={resolvedTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
 				>
+					{resolvedTheme === "dark" ? <LuSun className="size-4" /> : <LuMoon className="size-4" />}
+				</button>
+			</header>
+			<main className="mx-auto flex max-w-lg flex-1 flex-col items-center justify-center px-5 pb-20 text-center">
+				<p className="text-7xl font-semibold tracking-tight text-primary tabular-nums sm:text-8xl" aria-hidden>
 					{code}
 				</p>
-				<h1 className="mt-6 text-2xl font-bold text-text-primary sm:text-3xl">
-					{title}
-				</h1>
-				<p className="mt-3 max-w-md text-sm leading-relaxed text-text-secondary sm:text-base">
-					{description}
-				</p>
+				<h1 className="mt-6 text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+				<p className="mt-3 max-w-md text-sm leading-relaxed text-muted sm:text-base">{description}</p>
 				<div className="mt-10 flex flex-wrap items-center justify-center gap-2">
-					<Button
-						title="Go back"
-						variant="secondary"
-						type="button"
-						className="w-auto"
-						onClick={() => navigate(-1)}
-					/>
-					<Button
-						title="Home"
-						variant="primary"
-						type="button"
-						className="w-auto"
-						onClick={() => navigate("/", { replace: true })}
-					/>
+					<Button variant="secondary" icon={<LuArrowLeft className="size-4" />} onClick={() => navigate(-1)}>
+						Go back
+					</Button>
+					<Link to="/" replace className={buttonPrimaryClass()}>
+						Go home
+					</Link>
 				</div>
 			</main>
 		</div>

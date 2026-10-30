@@ -1,5 +1,12 @@
 import { ApiError, isHttpValidationError } from "@/types/api";
 
+function stringField(body: unknown, key: "detail" | "message"): string | null {
+	if (typeof body !== "object" || body === null || !(key in body)) return null;
+	const value = (body as Record<string, unknown>)[key];
+	return typeof value === "string" && value.trim() ? value : null;
+}
+
+/** A message for the user from any request error: the API's own text when it has one. */
 export function getRequestErrorMessage(
 	error: unknown,
 	fallback = "Something went wrong. Please try again.",
@@ -9,16 +16,13 @@ export function getRequestErrorMessage(
 			const parts = error.body.detail.map((d) => d.msg).filter(Boolean);
 			if (parts.length > 0) return parts.join(" ");
 		}
-		if (
-			typeof error.body === "object" &&
-			error.body !== null &&
-			"message" in error.body &&
-			typeof (error.body as { message: unknown }).message === "string"
-		) {
-			return (error.body as { message: string }).message;
-		}
-		return error.message;
+		const text = stringField(error.body, "detail") ?? stringField(error.body, "message");
+		if (text) return text;
+		if (error.status === 429) return "Too many requests. Please wait a moment and try again.";
+		return fallback;
 	}
-	if (error instanceof Error) return error.message;
+	// fetch() rejects with a TypeError when the server can't be reached.
+	if (error instanceof TypeError) return "Can’t reach the server. Check your connection and try again.";
+	if (error instanceof Error && error.message) return error.message;
 	return fallback;
 }

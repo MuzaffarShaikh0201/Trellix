@@ -5,10 +5,19 @@ import {
 	useState,
 	type ReactNode,
 } from "react";
-import { ThemeContext, type ResolvedTheme, type Theme } from "./theme-context";
+import { ThemeContext, type Density, type ResolvedTheme, type Theme } from "./theme-context";
 
 /** Kept in sync with the inline script in `index.html`. */
 const THEME_STORAGE_KEY = "trellix-theme";
+const DENSITY_STORAGE_KEY = "trellix-density";
+
+function readStoredDensity(): Density {
+	try {
+		return localStorage.getItem(DENSITY_STORAGE_KEY) === "compact" ? "compact" : "comfortable";
+	} catch {
+		return "comfortable";
+	}
+}
 
 function readStoredTheme(): Theme | null {
 	try {
@@ -65,6 +74,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 		return () => mq.removeEventListener("change", onChange);
 	}, []);
 
+	const [density, setDensityState] = useState<Density>(readStoredDensity);
+
+	useLayoutEffect(() => {
+		if (density === "compact") document.documentElement.setAttribute("data-density", "compact");
+		else document.documentElement.removeAttribute("data-density");
+	}, [density]);
+
+	const setDensity = useCallback((next: Density) => {
+		try {
+			localStorage.setItem(DENSITY_STORAGE_KEY, next);
+		} catch {
+			/* ignore */
+		}
+		setDensityState(next);
+	}, []);
+
 	const resolvedTheme = useMemo(
 		() => resolveTheme(theme, systemIsDark),
 		[theme, systemIsDark],
@@ -94,8 +119,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 			resolvedTheme,
 			setTheme: setThemeValue,
 			toggleTheme,
+			density,
+			setDensity,
 		}),
-		[theme, resolvedTheme, setThemeValue, toggleTheme],
+		[theme, resolvedTheme, setThemeValue, toggleTheme, density, setDensity],
 	);
 
 	return (

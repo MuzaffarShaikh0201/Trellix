@@ -32,7 +32,7 @@ export function AlertHost() {
 
 	return (
 		<div
-			className="pointer-events-none fixed right-6 bottom-6 z-100 flex w-[min(100vw-3rem,24rem)] flex-col gap-3"
+			className="pointer-events-none fixed inset-x-3 bottom-24 z-100 flex flex-col gap-2 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-96"
 			aria-live="polite"
 			aria-relevant="additions"
 		>
@@ -41,9 +41,9 @@ export function AlertHost() {
 					<motion.div
 						key={alert.id}
 						layout="position"
-						initial={{ y: -28, opacity: 0, scale: 0.94 }}
+						initial={{ y: 16, opacity: 0, scale: 0.96 }}
 						animate={{ y: 0, opacity: 1, scale: 1 }}
-						exit={{ y: 28, opacity: 0, scale: 0.94 }}
+						exit={{ x: 24, opacity: 0, scale: 0.96 }}
 						transition={{
 							type: "spring",
 							stiffness: 420,
@@ -53,7 +53,6 @@ export function AlertHost() {
 						className="pointer-events-auto w-full shrink-0"
 					>
 						<CustomAlert
-							stacked
 							type={alert.type}
 							title={alert.title}
 							description={alert.description}

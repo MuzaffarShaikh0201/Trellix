@@ -1,225 +1,169 @@
-import { useNavigate } from "react-router";
-import { FaRegStar, FaStar } from "react-icons/fa";
+import { Link } from "react-router";
+import { LuArrowRightLeft, LuCircleCheck, LuStar } from "react-icons/lu";
 
 import { ProjectRepoBadge } from "@/components/project/ProjectRepoBadge";
-import { projectCardShellClass } from "@/components/project/project-card-shell";
-import {
-	parseWorkItemStats,
-	taskCompletionPercent,
-} from "@/lib/project/workItemStats";
 import { ProjectStatusChip } from "@/components/project/ProjectStatusChip";
+import { DueLabel, ProjectTimeline, TimelineBar } from "@/components/project/ProjectTimeline";
+import { ProjectTile } from "@/components/project/ProjectTile";
+import { cardClass } from "@/components/ui/Card";
+import { formatDay, timeAgo } from "@/lib/project/projectDisplay";
+import { PROJECT_STATUS_OPTIONS } from "@/lib/project/projectStatusStyles";
 import { cn } from "@/lib/utils";
-import type { Project } from "@/types/project";
+import type { Project, ProjectStatus } from "@/types/project";
 
-function formatDate(value: string | null): string {
-	if (!value) return "—";
-	try {
-		const d = new Date(value);
-		const day = String(d.getDate()).padStart(2, "0");
-		const month = d.toLocaleString(undefined, { month: "short" });
-		const year = d.getFullYear();
-		return `${day}/${month}/${year}`;
-	} catch {
-		return value;
-	}
-}
+type FavoriteProps = {
+	onToggleFavorite: (projectId: string) => void;
+	favoritePending: boolean;
+};
 
-
-const PROJECT_TITLE_MAX_CHARS = 48;
-
-function normalizeInlineText(value: string) {
-	return value.replace(/\s+/g, " ").trim();
-}
-
-function truncateText(value: string, maxChars: number) {
-	const normalized = normalizeInlineText(value);
-	if (normalized.length <= maxChars) return normalized;
-	return `${normalized.slice(0, maxChars).trimEnd()}...`;
-}
-
-function truncateProjectTitle(value: string) {
-	return truncateText(value, PROJECT_TITLE_MAX_CHARS);
-}
-
-function getRepoDisplayName(url: string | null): string | null {
-	if (!url?.trim()) return null;
-	try {
-		const parsed = new URL(url.trim());
-		const parts = parsed.pathname.split("/").filter(Boolean);
-		if (parts.length >= 2) {
-			return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
-		}
-		if (parts.length === 1) return parts[0]!;
-		return parsed.hostname.replace(/^www\./, "");
-	} catch {
-		const trimmed = url.trim();
-		const slash = trimmed.lastIndexOf("/");
-		if (slash >= 0 && slash < trimmed.length - 1) {
-			return trimmed.slice(slash + 1);
-		}
-		return trimmed;
-	}
-}
-
-export function ProjectCard({
+export function FavoriteStar({
 	project,
 	onToggleFavorite,
 	favoritePending,
+	className,
+}: FavoriteProps & { project: Project; className?: string }) {
+	return (
+		<button
+			type="button"
+			onClick={(e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				onToggleFavorite(project.id);
+			}}
+			disabled={favoritePending}
+			aria-pressed={project.is_favorite}
+			aria-label={project.is_favorite ? "Remove from favorites" : "Add to favorites"}
+			className={cn(
+				"grid size-7 shrink-0 cursor-pointer place-items-center rounded-md text-muted transition hover:bg-surface-2 hover:text-amber-500",
+				className,
+			)}
+		>
+			<LuStar className={cn("size-4", project.is_favorite && "fill-amber-400 text-amber-400")} />
+		</button>
+	);
+}
+
+export function ProjectCard({ project, ...fav }: FavoriteProps & { project: Project }) {
+	return (
+		<Link
+			to={`/projects/${project.id}`}
+			className={cn(
+				cardClass,
+				"group flex flex-col p-4 transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5",
+			)}
+		>
+			<div className="flex items-start gap-3">
+				<ProjectTile project={project} />
+				<div className="min-w-0 flex-1">
+					<h3 className="truncate text-[15px] font-semibold" title={project.title}>
+						{project.title}
+					</h3>
+					<p className="text-[11px] text-muted">Updated {timeAgo(project.updated_at)}</p>
+				</div>
+				<FavoriteStar project={project} {...fav} className="-mt-1 -mr-1" />
+			</div>
+			<p className="mt-3 line-clamp-2 min-h-10 text-sm text-muted">
+				{project.description?.trim() || <span className="italic opacity-70">No description</span>}
+			</p>
+			<div className="mt-3 flex min-w-0 flex-wrap items-center gap-1.5">
+				<ProjectStatusChip status={project.status} />
+				{project.is_archived ? (
+					<span className="rounded-full bg-slate-500/10 px-2 py-0.5 text-[11px] font-medium text-muted">Archived</span>
+				) : null}
+				<ProjectRepoBadge repoUrl={project.repo_url} className="max-w-[50%]" />
+				<TaskProgressChip project={project} />
+			</div>
+			<div className="mt-4 border-t border-line pt-3">
+				<ProjectTimeline project={project} />
+			</div>
+		</Link>
+	);
+}
+
+/** "✓ 5/12" chip from project.task_counts; hidden when the project has no tasks. */
+export function TaskProgressChip({ project }: { project: Project }) {
+	const c = project.task_counts;
+	if (!c?.total) return null;
+	const allDone = c.completed === c.total;
+	return (
+		<span
+			title={`${c.completed} of ${c.total} tasks done`}
+			className={cn(
+				"inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium tabular-nums",
+				allDone ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-surface-2 text-muted",
+			)}
+		>
+			<LuCircleCheck className="size-3" />
+			{c.completed}/{c.total}
+		</span>
+	);
+}
+
+/** Compact card used in board columns. */
+export function ProjectBoardCard({
+	project,
+	draggable,
+	onMove,
 }: {
 	project: Project;
-	onToggleFavorite: (projectId: string) => void;
-	favoritePending: boolean;
+	draggable: boolean;
+	/** Changes status without drag and drop (touch screens, keyboard). */
+	onMove: (status: ProjectStatus) => void;
 }) {
-	const normalizedTitle = normalizeInlineText(project.title);
-	const repoName = getRepoDisplayName(project.repo_url);
-	const workItems = parseWorkItemStats(project);
-	const progress = taskCompletionPercent(workItems);
-	const lowPercent =
-		workItems.total > 0 ? (workItems.low / workItems.total) * 100 : 0;
-	const mediumPercent =
-		workItems.total > 0 ? (workItems.medium / workItems.total) * 100 : 0;
-	const highPercent =
-		workItems.total > 0 ? (workItems.high / workItems.total) * 100 : 0;
-
-	const navigate = useNavigate();
-
-	function openProject() {
-		navigate(`/projects/${project.id}`);
-	}
-
 	return (
-		<article
-			role="link"
-			tabIndex={0}
-			aria-label={`Open project ${normalizedTitle}`}
-			onClick={openProject}
-			onKeyDown={(e) => {
-				if (e.key === "Enter" || e.key === " ") {
-					e.preventDefault();
-					openProject();
-				}
+		<div
+			draggable={draggable}
+			onDragStart={(e) => {
+				e.dataTransfer.setData("text/project-id", project.id);
+				e.dataTransfer.effectAllowed = "move";
 			}}
-			className={cn("group cursor-pointer", projectCardShellClass)}
+			className={cn(
+				cardClass,
+				"group relative p-3 transition hover:border-primary/40",
+				draggable && "cursor-grab active:cursor-grabbing",
+			)}
 		>
-			<div className="flex min-h-0 flex-1 flex-col p-4 pb-3">
-				<div className="flex items-start justify-between gap-2">
-					<div className="min-w-0 flex-1">
-						<h3
-							className="line-clamp-2 text-base font-semibold leading-snug text-text-primary"
-							title={normalizedTitle}
+			<div className="flex items-center gap-2">
+				<ProjectTile project={project} className="size-6 rounded-md text-[9px]" />
+				<Link
+					to={`/projects/${project.id}`}
+					draggable={false}
+					className="truncate text-sm font-medium outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-primary/40"
+				>
+					{project.title}
+				</Link>
+				{project.is_favorite ? (
+					<LuStar className="ml-auto size-3.5 shrink-0 fill-amber-400 text-amber-400" aria-label="Favorite" />
+				) : null}
+			</div>
+			<TimelineBar project={project} className="mt-2.5 h-1" />
+			<div className="mt-1.5 flex items-center justify-between gap-2 text-[11px]">
+				<span className="text-muted">{formatDay(project.end_date)}</span>
+				<div className="flex items-center gap-1.5">
+					<DueLabel project={project} />
+					<label
+						title="Move to…"
+						className={cn(
+							"relative z-10 grid size-6 cursor-pointer place-items-center rounded-md text-muted transition hover:bg-surface-2 hover:text-fg",
+							draggable && "md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100",
+						)}
+					>
+						<LuArrowRightLeft className="size-3.5" />
+						<select
+							value={project.status}
+							onChange={(e) => onMove(e.target.value as ProjectStatus)}
+							aria-label={`Move ${project.title} to another status`}
+							className="absolute inset-0 cursor-pointer opacity-0"
 						>
-							{truncateProjectTitle(project.title)}
-						</h3>
-						<div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-							<ProjectStatusChip status={project.status} />
-							{project.is_archived ? (
-								<span className="inline-flex rounded border border-slate-500/40 px-2 py-0.5 text-[11px] font-medium text-slate-500">
-									Archived
-								</span>
-							) : null}
-						</div>
-					</div>
-					<div className="flex shrink-0 items-center gap-0.5">
-						<button
-							type="button"
-							onClick={(e) => {
-								e.stopPropagation();
-								onToggleFavorite(project.id);
-							}}
-							disabled={favoritePending}
-							className={cn(
-								"rounded-md p-1 text-text-secondary transition-colors hover:text-yellow-500",
-								favoritePending && "cursor-wait opacity-60",
-							)}
-							aria-label={
-								project.is_favorite
-									? "Remove from favorites"
-									: "Add to favorites"
-							}
-						>
-							{project.is_favorite ? (
-								<FaStar className="h-[18px] w-[18px] text-yellow-500" aria-hidden />
-							) : (
-								<FaRegStar className="h-[18px] w-[18px]" aria-hidden />
-							)}
-						</button>
-					</div>
-				</div>
-
-				<ProjectRepoBadge
-					repoUrl={project.repo_url}
-					displayName={repoName}
-				/>
-
-				<div className="min-h-2 flex-1" aria-hidden />
-
-				<div className="grid shrink-0 grid-cols-2 gap-3">
-					<div className="min-w-0">
-						<p className="text-[11px] text-text-secondary">Work Items (%)</p>
-						<div className="mt-1 flex items-center gap-1 text-sm font-medium text-text-primary">
-							<span>{workItems.low}</span>
-							<span className="text-text-secondary">·</span>
-							<span>{workItems.medium}</span>
-							<span className="text-text-secondary">·</span>
-							<span>{workItems.high}</span>
-						</div>
-						<div className="mt-1.5 flex h-1 overflow-hidden rounded-full bg-tint">
-							<div
-								className="bg-sky-500"
-								style={{ width: `${lowPercent}%` }}
-								aria-hidden
-							/>
-							<div
-								className="bg-cyan-400"
-								style={{ width: `${mediumPercent}%` }}
-								aria-hidden
-							/>
-							<div
-								className="bg-red-500"
-								style={{ width: `${highPercent}%` }}
-								aria-hidden
-							/>
-						</div>
-					</div>
-					<div className="min-w-0">
-						<p className="text-[11px] text-text-secondary">Tasks Completed</p>
-						<div className="mt-1 flex items-center justify-between text-sm font-medium text-text-primary">
-							<span>{progress}%</span>
-							<span className="text-xs text-text-secondary">
-								{workItems.completed}/{workItems.total}
-							</span>
-						</div>
-						<div className="mt-1.5 h-1 overflow-hidden rounded-full bg-tint">
-							<div
-								className="h-full rounded-full bg-emerald-500"
-								style={{ width: `${progress}%` }}
-								aria-hidden
-							/>
-						</div>
-					</div>
+							{PROJECT_STATUS_OPTIONS.map((o) => (
+								<option key={o.value} value={o.value}>
+									{o.label}
+								</option>
+							))}
+						</select>
+					</label>
 				</div>
 			</div>
-
-			<footer
-				className={cn(
-					"mt-0.5 grid shrink-0 grid-cols-2 gap-4 px-4 py-3",
-					"bg-transparent transition-colors",
-					"max-sm:bg-tint sm:group-hover:bg-tint",
-				)}
-			>
-				<div>
-					<p className="text-xs text-text-secondary">Start Date:</p>
-					<p className="mt-0.5 text-sm font-semibold text-text-primary">
-						{formatDate(project.start_date)}
-					</p>
-				</div>
-				<div>
-					<p className="text-xs text-text-secondary">End Date:</p>
-					<p className="mt-0.5 text-sm font-semibold text-text-primary">
-						{formatDate(project.end_date)}
-					</p>
-				</div>
-			</footer>
-		</article>
+		</div>
 	);
 }

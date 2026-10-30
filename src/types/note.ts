@@ -12,6 +12,8 @@ export type NoteListItem = {
 	id: string;
 	title?: string;
 	content?: string | null;
+	/** Plain-text preview (~200 chars) from the list endpoint; null when the note is empty. */
+	excerpt?: string | null;
 	project?: NoteProjectRef | null;
 	is_pinned: boolean;
 	created_at?: string;
@@ -19,6 +21,8 @@ export type NoteListItem = {
 };
 
 export type GetNotesParams = {
+	/** Case-insensitive search on title and content. */
+	q?: string;
 	project_id?: string;
 	personal?: boolean;
 	page?: number;

@@ -1,3 +1,5 @@
+import type { TaskCounts } from "@/types/task";
+
 export type ProjectStatus =
 	| "PLANNING"
 	| "IN_PROGRESS"
@@ -26,11 +28,15 @@ export type Project = {
 	color: string | null;
 	is_favorite: boolean;
 	is_archived: boolean;
+	/** Added by the backend with the tasks API. */
+	task_counts?: TaskCounts;
 	created_at: string;
 	updated_at: string;
 };
 
 export type GetProjectsParams = {
+	/** Case-insensitive search on title and description. */
+	q?: string;
 	status?: ProjectStatus;
 	is_favorite?: boolean;
 	is_archived?: boolean;
@@ -84,4 +90,9 @@ export type UpdateProjectParams = {
 	color?: string | null;
 	repo_url?: string | null;
 	is_archived?: boolean | null;
+};
+
+export type ProjectCountsResponse = {
+	total: number;
+	by_status: Record<ProjectStatus, number>;
 };

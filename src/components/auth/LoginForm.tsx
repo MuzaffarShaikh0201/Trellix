@@ -1,13 +1,12 @@
-import type { ChangeEvent, FormEvent, MouseEvent } from "react";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { FiExternalLink } from "react-icons/fi";
+import { LuArrowRight, LuLock, LuMail } from "react-icons/lu";
 
-import { useAuth } from "@/contexts/auth";
-import googleLogo from "@/assets/google.svg";
+import { GoogleButton, OrDivider } from "@/components/auth/GoogleButton";
 import Button from "@/components/ui/Button";
-import { CustomLoader } from "@/components/ui/CustomLoader";
-import FormField from "@/components/ui/FormField";
+import { TextField } from "@/components/ui/Field";
+import { useAuth } from "@/contexts/auth";
+import { formatWait, useCooldown } from "@/hooks/useCooldown";
 import { safeAppRedirectTarget } from "@/lib/auth/auth-routes";
 import { getRequestErrorMessage } from "@/lib/getRequestErrorMessage";
 import { showAlert } from "@/services/alertService";
@@ -16,152 +15,88 @@ export function LoginForm() {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [loading, setLoading] = useState(false);
-
 	const [searchParams] = useSearchParams();
 	const redirectTo = safeAppRedirectTarget(searchParams.get("redirectTo"));
 	const navigate = useNavigate();
 	const { login } = useAuth();
+	const cooldown = useCooldown();
 
-	const year = new Date().getFullYear();
-
-	const handleLogin = async (e: FormEvent) => {
+	async function handleLogin(e: FormEvent) {
 		e.preventDefault();
-
 		if (!email.trim() || !password) {
-			showAlert(
-				"Validation Error",
-				"warning",
-				"Please fill in all fields",
-			);
+			showAlert("Missing details", "warning", "Enter your email and password.");
 			return;
 		}
-
 		setLoading(true);
 		try {
 			await login({ email: email.trim(), password });
 			navigate(redirectTo, { replace: true });
-		} catch (error: unknown) {
+		} catch (error) {
+			// After too many failed attempts even the right password is refused until the wait ends.
+			const limited = cooldown.startFrom(error);
 			showAlert(
-				"Login Failed",
+				limited ? "Too many attempts" : "Login failed",
 				"error",
-				getRequestErrorMessage(
-					error,
-					"Invalid credentials. Please try again.",
-				),
+				getRequestErrorMessage(error, "Invalid credentials. Please try again."),
 			);
 		} finally {
 			setLoading(false);
 		}
-	};
-
-	const handleGoogleLogin = (e: MouseEvent) => {
-		e.preventDefault();
-		showAlert(
-			"Coming Soon!",
-			"info",
-			"Google login will be available soon!",
-		);
-	};
+	}
 
 	return (
-		<div className="flex h-full min-h-0 w-full flex-col items-center justify-between bg-background-secondary p-4 lg:justify-center">
-			<div className="flex w-full items-center justify-start gap-2 p-2 lg:hidden">
-				<img
-					src="/layers.svg"
-					alt=""
-					className="size-8"
-					width={32}
-					height={32}
+		<>
+			<h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
+			<p className="mt-1.5 text-sm text-muted">Log in to pick up where you left off.</p>
+			<div className="mt-7">
+				<GoogleButton disabled={loading} />
+			</div>
+			<OrDivider />
+			<form onSubmit={handleLogin} className="space-y-4" noValidate>
+				<TextField
+					label="Email"
+					type="email"
+					icon={<LuMail />}
+					placeholder="you@company.com"
+					autoComplete="email"
+					autoFocus
+					value={email}
+					onChange={(e) => setEmail(e.target.value)}
 				/>
-				<h1 className="text-2xl font-bold text-text-primary">
-					Trellix
-				</h1>
-			</div>
-
-			<form
-				onSubmit={handleLogin}
-				className="flex min-h-0 w-full flex-1 flex-col items-center justify-evenly p-2 lg:min-h-0 lg:flex-none lg:p-4"
-			>
-				<div className="mb-2 flex w-full flex-col items-start gap-1 justify-center p-2 lg:p-4">
-					<h2 className="text-xl font-bold text-text-primary">
-						Login
-					</h2>
-					<p className="text-xs text-text-secondary">
-						Welcome back! Please login to your account.
-					</p>
+				<TextField
+					label="Password"
+					type="password"
+					icon={<LuLock />}
+					placeholder="••••••••"
+					autoComplete="current-password"
+					value={password}
+					onChange={(e) => setPassword(e.target.value)}
+				/>
+				<div className="-mt-2 flex justify-end">
+					<Link
+						to={`/forgot-password${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`}
+						className="text-xs font-medium text-primary hover:underline"
+					>
+						Forgot password?
+					</Link>
 				</div>
-
-				<div className="mt-4 flex w-full flex-col items-start justify-center gap-4 p-2 lg:p-4">
-					<FormField
-						title="Email"
-						placeholder="Enter your email..."
-						type="email"
-						value={email}
-						handleChange={(ev: ChangeEvent<HTMLInputElement>) =>
-							setEmail(ev.target.value)
-						}
-					/>
-					<FormField
-						title="Password"
-						placeholder="Enter your password..."
-						type="password"
-						value={password}
-						handleChange={(ev: ChangeEvent<HTMLInputElement>) =>
-							setPassword(ev.target.value)
-						}
-					/>
-				</div>
-
-				<div className="flex w-full flex-col items-center justify-center gap-4 p-2 lg:p-4">
-					<Button
-						title="Login"
-						fill={true}
-						type="submit"
-						loading={loading}
-						loader={
-							<CustomLoader
-								size={16}
-								color="#ffffff"
-								containerStyle={{ width: 16, height: 16 }}
-								aria-label="Signing in"
-							/>
-						}
-					/>
-					<Button
-						title="Login with "
-						imgSrc={googleLogo}
-						variant="secondary"
-						type="button"
-						onClick={handleGoogleLogin}
-						disabled={loading}
-					/>
-				</div>
-
-				<div className="flex w-full items-center justify-center p-2 lg:p-4">
-					<p className="text-xs text-text-secondary">
-						Don&apos;t have an account?{" "}
-						<Link
-							to="/signup"
-							className="text-primary hover:underline"
-						>
-							Sign up
-						</Link>
-					</p>
-				</div>
+				<Button type="submit" className="w-full py-2.5" loading={loading} disabled={cooldown.waiting}>
+					{cooldown.waiting ? (
+						`Try again in ${formatWait(cooldown.secondsLeft)}`
+					) : (
+						<>
+							Log in
+							{loading ? null : <LuArrowRight className="size-4" />}
+						</>
+					)}
+				</Button>
 			</form>
-
-			<div className="flex w-full flex-col items-center justify-center gap-2 self-end p-2 lg:hidden">
-				<p className="text-xs text-text-secondary">
-					&copy; Trellix&trade; {year}
-				</p>
-				<Link
-					to="/legal#terms-of-use"
-					className="flex flex-row items-center gap-1 text-xs text-text-secondary underline-offset-2 underline"
-				>
-					Terms of use &amp; Privacy Policy
-					<FiExternalLink className="inline-block" />
+			<p className="mt-6 text-center text-sm text-muted">
+				New to Trellix?{" "}
+				<Link to={`/signup${searchParams.toString() ? `?${searchParams}` : ""}`} className="font-medium text-primary hover:underline">
+					Create an account
 				</Link>
-			</div>
-		</div>
+			</p>
+		</>
 	);
 }

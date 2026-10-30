@@ -1,223 +1,132 @@
-import { useMemo, useState, type FormEvent } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-	Link,
-	useLocation,
-	useNavigate,
-	useSearchParams,
-} from "react-router";
-import { MdArrowBack } from "react-icons/md";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 
-import {
-	MarkdownEditorPane,
-	type MarkdownView,
-} from "@/components/note/MarkdownEditorPane";
+import { TopbarActions } from "@/components/layout/TopbarActions";
+import type { MarkdownView } from "@/components/note/MarkdownEditorPane";
+import { NoteEditorLayout } from "@/components/note/NoteEditorLayout";
 import Button from "@/components/ui/Button";
-import { CustomLoader } from "@/components/ui/CustomLoader";
-import { buttonSecondaryClass } from "@/components/ui/buttonStyles";
+import { buttonGhostClass } from "@/components/ui/buttonStyles";
 import { createNote } from "@/lib/api/notes";
-import { fetchProjects } from "@/lib/api/projects";
 import { getRequestErrorMessage } from "@/lib/getRequestErrorMessage";
-import { cn } from "@/lib/utils";
+import { readEditorView, storeEditorView } from "@/lib/note/editorView";
+import { noteKeys, useAllProjects } from "@/lib/queries";
 import { showAlert } from "@/services/alertService";
-
-const PROJECT_PICKER_QUERY_KEY = ["projects", "picker"] as const;
-
-const fieldClass = cn(
-	"h-9 w-full rounded-lg border border-primary/15 bg-tint px-3 text-sm text-text-primary",
-	"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
-);
 
 type LocationState = { lockedProjectTitle?: string } | null;
 
 export function CreateNotePage() {
 	const navigate = useNavigate();
-	const queryClient = useQueryClient();
-	const [searchParams] = useSearchParams();
+	const qc = useQueryClient();
+	const [sp] = useSearchParams();
 	const location = useLocation();
-
-	const lockedProjectId = searchParams.get("projectId")?.trim() || "";
-	const lockedTitleFromState =
-		(location.state as LocationState)?.lockedProjectTitle ?? null;
+	const lockedProjectId = sp.get("projectId")?.trim() || "";
+	const lockedTitle = (location.state as LocationState)?.lockedProjectTitle;
 
 	const [title, setTitle] = useState("");
 	const [content, setContent] = useState("");
-	const [projectId, setProjectId] = useState("");
-	const [view, setView] = useState<MarkdownView>("split");
+	const [projectId, setProjectId] = useState(lockedProjectId);
+	const [view, setViewState] = useState<MarkdownView>(readEditorView);
+	const projects = useAllProjects();
 
-	const { data: projectsPickerData, isPending: projectsPickerPending } =
-		useQuery({
-			queryKey: PROJECT_PICKER_QUERY_KEY,
-			queryFn: () =>
-				fetchProjects({
-					limit: 100,
-					sort_by: "title",
-					sort_order: "asc",
-					is_archived: false,
-				}),
-		});
+	const projectOptions = useMemo(() => {
+		const list = (projects.data?.projects ?? []).map((p) => ({ id: p.id, title: p.title, color: p.color }));
+		if (lockedProjectId && !list.some((p) => p.id === lockedProjectId)) {
+			list.unshift({ id: lockedProjectId, title: lockedTitle ?? "Selected project", color: null });
+		}
+		return list;
+	}, [projects.data, lockedProjectId, lockedTitle]);
 
-	const projectOptions = useMemo(
-		() =>
-			(projectsPickerData?.projects ?? []).map((p) => ({
-				id: p.id,
-				title: p.title,
-			})),
-		[projectsPickerData?.projects],
-	);
+	const cancelTo = lockedProjectId ? `/projects/${lockedProjectId}?tab=notes` : "/notes";
+	const dirty = Boolean(title.trim() || content.trim());
 
-	const lockedProjectTitle = useMemo(() => {
-		if (!lockedProjectId) return null;
-		return (
-			lockedTitleFromState ??
-			projectOptions.find((p) => p.id === lockedProjectId)?.title ??
-			"Selected project"
-		);
-	}, [lockedProjectId, lockedTitleFromState, projectOptions]);
-
-	const effectiveProjectId = lockedProjectId || projectId;
-
-	const cancelTo = lockedProjectId
-		? `/projects/${lockedProjectId}`
-		: "/notes";
-
-	const createMutation = useMutation({
+	const create = useMutation({
 		mutationFn: createNote,
-		onSuccess: async (response) => {
-			showAlert("Note created", "success", "Your note has been created.");
-			await queryClient.invalidateQueries({ queryKey: ["notes"] });
-			navigate(`/notes/${response.note_id}`);
+		onSuccess: async ({ note_id }) => {
+			showAlert("Note created", "success", "Changes from here on save automatically.");
+			await qc.invalidateQueries({ queryKey: noteKeys.all });
+			navigate(`/notes/${note_id}`, { replace: true });
 		},
-		onError: (err) => {
-			showAlert(
-				"Create failed",
-				"error",
-				getRequestErrorMessage(
-					err,
-					"Something went wrong while creating your note.",
-				),
-			);
-		},
+		onError: (err) =>
+			showAlert("Create failed", "error", getRequestErrorMessage(err, "Something went wrong while creating your note.")),
 	});
 
-	function handleSubmit(e: FormEvent<HTMLFormElement>) {
-		e.preventDefault();
-		const trimmedTitle = title.trim();
-		if (!trimmedTitle) {
-			showAlert("Validation Error", "warning", "Note title is required.");
+	function submit() {
+		if (!title.trim()) {
+			showAlert("Title required", "warning", "Give your note a title before saving.");
 			return;
 		}
-		createMutation.mutate({
-			title: trimmedTitle,
-			content: content.trim() || null,
-			project_id: effectiveProjectId || null,
+		create.mutate({
+			title: title.trim(),
+			content: content.trim() ? content : null,
+			project_id: (lockedProjectId || projectId) || null,
 		});
 	}
 
-	const submitting = createMutation.isPending;
+	const submitRef = useRef(submit);
+	useLayoutEffect(() => {
+		submitRef.current = submit;
+	});
+
+	// ⌘S / Ctrl+S creates the note; warn before closing the tab with a draft.
+	useEffect(() => {
+		function onKey(e: KeyboardEvent) {
+			if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+				e.preventDefault();
+				submitRef.current();
+			}
+		}
+		function onBeforeUnload(e: BeforeUnloadEvent) {
+			if (dirty && !create.isSuccess) e.preventDefault();
+		}
+		document.addEventListener("keydown", onKey);
+		window.addEventListener("beforeunload", onBeforeUnload);
+		return () => {
+			document.removeEventListener("keydown", onKey);
+			window.removeEventListener("beforeunload", onBeforeUnload);
+		};
+	}, [dirty, create.isSuccess]);
+
+	function setView(v: MarkdownView) {
+		setViewState(v);
+		storeEditorView(v);
+	}
+
+	const actions = (
+		<div className="flex items-center gap-1.5">
+			<Link to={cancelTo} className={buttonGhostClass("py-1.5")}>
+				Cancel
+			</Link>
+			<Button className="py-1.5" onClick={submit} loading={create.isPending}>
+				Create note
+			</Button>
+		</div>
+	);
 
 	return (
-		<form
-			onSubmit={handleSubmit}
-			className="flex min-h-0 flex-1 flex-col gap-4"
-		>
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<Link
-					to={cancelTo}
-					className="inline-flex min-w-0 items-center gap-1 text-sm font-medium text-text-secondary transition-colors hover:text-primary"
-				>
-					<MdArrowBack className="h-[18px] w-[18px] shrink-0" aria-hidden />
-					{lockedProjectId ? "Back to project" : "Back to Notes"}
-				</Link>
-
-				<div className="flex flex-wrap items-center gap-2">
-					<Link to={cancelTo} className={buttonSecondaryClass()}>
-						Cancel
-					</Link>
-					<Button
-						type="submit"
-						title="Create Note"
-						variant="primary"
-						className="w-auto"
-						disabled={submitting}
-						loading={submitting}
-						loader={
-							<CustomLoader
-								size={16}
-								color="#ffffff"
-								containerStyle={{ width: 16, height: 16 }}
-								aria-label="Creating note"
-							/>
-						}
-					/>
-				</div>
-			</div>
-
-			<div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_16rem]">
-				<div>
-					<label
-						htmlFor="create-note-title"
-						className="text-xs font-light text-text-primary"
-					>
-						Title
-					</label>
-					<input
-						id="create-note-title"
-						type="text"
-						value={title}
-						onChange={(e) => setTitle(e.target.value)}
-						placeholder="e.g. Sprint planning notes"
-						autoComplete="off"
-						autoFocus
-						className={cn(fieldClass, "mt-1.5")}
-					/>
-				</div>
-
-				<div>
-					<label
-						htmlFor="create-note-project"
-						className="text-xs font-light text-text-primary"
-					>
-						Project
-					</label>
-					{lockedProjectId ? (
-						<p
-							className={cn(
-								fieldClass,
-								"mt-1.5 flex cursor-default items-center truncate",
-							)}
-							aria-readonly
-							title={lockedProjectTitle ?? undefined}
-						>
-							{lockedProjectTitle}
-						</p>
-					) : (
-						<select
-							id="create-note-project"
-							value={projectId}
-							onChange={(e) => setProjectId(e.target.value)}
-							disabled={projectsPickerPending}
-							className={cn(fieldClass, "mt-1.5 cursor-pointer")}
-							aria-label="Link note to project"
-						>
-							<option value="">Personal note (no project)</option>
-							{projectOptions.map((project) => (
-								<option key={project.id} value={project.id}>
-									{project.title}
-								</option>
-							))}
-						</select>
-					)}
-				</div>
-			</div>
-
-			<MarkdownEditorPane
-				id="create-note-content"
-				value={content}
-				onChange={setContent}
+		<>
+			<TopbarActions>
+				<span className="mr-1 flex items-center gap-1.5 text-xs text-muted">
+					<span className="size-1.5 rounded-full bg-amber-500" />
+					Draft
+				</span>
+				{actions}
+			</TopbarActions>
+			<NoteEditorLayout
+				autoFocusTitle
+				title={title}
+				onTitleChange={setTitle}
+				content={content}
+				onContentChange={setContent}
+				projectId={lockedProjectId || projectId}
+				onProjectChange={setProjectId}
+				projectOptions={projectOptions}
+				projectLocked={Boolean(lockedProjectId)}
 				view={view}
 				onViewChange={setView}
+				actions={<div className="md:hidden">{actions}</div>}
+				status={<span className="max-md:hidden">⌘S / Ctrl+S to create</span>}
 			/>
-		</form>
+		</>
 	);
 }

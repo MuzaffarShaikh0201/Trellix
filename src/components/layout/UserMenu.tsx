@@ -1,91 +1,66 @@
-import { useEffect, useId, useRef, useState } from "react";
-import { NavLink, useNavigate } from "react-router";
+import { useCallback, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router";
 import {
-	FaArrowRightFromBracket,
-	FaGear,
-	FaPhone,
-	FaUser,
-} from "react-icons/fa6";
-import {
-	MdBrightnessAuto,
-	MdCheck,
-	MdDarkMode,
-	MdExpandMore,
-	MdGavel,
-	MdLightMode,
-} from "react-icons/md";
-import type { IconType } from "react-icons";
+	LuLogOut,
+	LuMessageCircle,
+	LuMonitor,
+	LuMoon,
+	LuScale,
+	LuSettings,
+	LuSun,
+} from "react-icons/lu";
 
+import { menuItemClass, popoverPanelClass } from "@/components/ui/buttonStyles";
 import { useAuth } from "@/contexts/auth";
-import { useTheme } from "@/contexts/theme/useTheme";
 import type { Theme } from "@/contexts/theme/theme-context";
+import { useTheme } from "@/contexts/theme/useTheme";
+import { useDismiss } from "@/hooks/useDismiss";
 import { cn } from "@/lib/utils";
 
-function userInitials(first: string, last: string): string {
-	const a = first.trim().charAt(0);
-	const b = last.trim().charAt(0);
-	const s = `${a}${b}`.toUpperCase();
-	return s.length > 0 ? s : "?";
+function userInitials(first?: string, last?: string): string {
+	const s =
+		`${first?.trim().charAt(0) ?? ""}${last?.trim().charAt(0) ?? ""}`.toUpperCase();
+	return s || "?";
 }
 
-const menuLinkClass =
-	"flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-text-primary transition-colors hover:bg-primary/5";
+export function UserAvatar({ className }: { className?: string }) {
+	const { user } = useAuth();
+	return (
+		<span
+			aria-hidden
+			className={cn(
+				"grid size-8 shrink-0 place-items-center rounded-full bg-linear-to-br from-primary to-indigo-500 text-xs font-semibold text-white",
+				className,
+			)}
+		>
+			{user ? userInitials(user.first_name, user.last_name) : "…"}
+		</span>
+	);
+}
 
-const THEME_OPTIONS: {
-	value: Theme;
-	label: string;
-	Icon: IconType;
-}[] = [
-	{ value: "light", label: "Light", Icon: MdLightMode },
-	{ value: "dark", label: "Dark", Icon: MdDarkMode },
-	{ value: "system", label: "System", Icon: MdBrightnessAuto },
+const THEMES: { value: Theme; label: string; Icon: typeof LuSun }[] = [
+	{ value: "light", label: "Light", Icon: LuSun },
+	{ value: "dark", label: "Dark", Icon: LuMoon },
+	{ value: "system", label: "System", Icon: LuMonitor },
 ];
 
-export function UserMenu() {
+type UserMenuProps = {
+	/** "sidebar" opens upward with name + email in the trigger; "compact" is the avatar only. */
+	variant: "sidebar" | "compact";
+};
+
+export function UserMenu({ variant }: UserMenuProps) {
 	const { user, logout } = useAuth();
 	const { theme, setTheme } = useTheme();
 	const navigate = useNavigate();
 	const [open, setOpen] = useState(false);
-	const [themePickerOpen, setThemePickerOpen] = useState(false);
 	const rootRef = useRef<HTMLDivElement>(null);
-	const themePickerRef = useRef<HTMLDivElement>(null);
-	const menuId = useId();
-	const themePickerId = `${menuId}-theme-picker`;
+	const close = useCallback(() => setOpen(false), []);
+	useDismiss(rootRef, open, close);
 
-	useEffect(() => {
-		if (!open) setThemePickerOpen(false);
-	}, [open]);
-
-	useEffect(() => {
-		if (!open) return;
-		function onPointerDown(e: PointerEvent) {
-			const t = e.target as Node;
-			if (!rootRef.current?.contains(t)) {
-				setOpen(false);
-				setThemePickerOpen(false);
-				return;
-			}
-			if (
-				themePickerOpen &&
-				themePickerRef.current &&
-				!themePickerRef.current.contains(t)
-			) {
-				setThemePickerOpen(false);
-			}
-		}
-		function onKey(e: KeyboardEvent) {
-			if (e.key === "Escape") {
-				if (themePickerOpen) setThemePickerOpen(false);
-				else setOpen(false);
-			}
-		}
-		document.addEventListener("pointerdown", onPointerDown);
-		document.addEventListener("keydown", onKey);
-		return () => {
-			document.removeEventListener("pointerdown", onPointerDown);
-			document.removeEventListener("keydown", onKey);
-		};
-	}, [open, themePickerOpen]);
+	const name = user
+		? `${user.first_name} ${user.last_name}`.trim() || "Account"
+		: "Account";
 
 	async function handleLogout() {
 		setOpen(false);
@@ -93,218 +68,116 @@ export function UserMenu() {
 		navigate("/login");
 	}
 
-	const displayName = user
-		? `${user.first_name} ${user.last_name}`.trim() || "Account"
-		: "Account";
-
-	const themeTriggerIcon =
-		theme === "system" ? (
-			<MdBrightnessAuto className="h-5 w-5" />
-		) : theme === "dark" ? (
-			<MdDarkMode className="h-5 w-5" />
-		) : (
-			<MdLightMode className="h-5 w-5" />
-		);
-
-	const themeLabel =
-		THEME_OPTIONS.find((o) => o.value === theme)?.label ?? "System";
-
 	return (
-		<div ref={rootRef} className="relative ml-1 shrink-0">
+		<div
+			ref={rootRef}
+			className={cn("relative", variant === "sidebar" && "w-full")}
+		>
 			<button
 				type="button"
-				id={`${menuId}-trigger`}
-				aria-haspopup="true"
-				aria-expanded={open}
-				aria-controls={open ? `${menuId}-panel` : undefined}
 				onClick={() => setOpen((v) => !v)}
 				disabled={!user}
+				aria-haspopup="menu"
+				aria-expanded={open}
+				aria-label={variant === "compact" ? "Account menu" : undefined}
 				className={cn(
-					"flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-primary text-xs font-semibold text-white transition-opacity",
-					!user && "cursor-not-allowed opacity-60",
+					"flex cursor-pointer items-center gap-2.5 rounded-lg text-left transition-colors",
+					variant === "sidebar"
+						? "w-full p-1.5 hover:bg-surface-2"
+						: "p-0.5",
 				)}
-				title={user ? displayName : undefined}
 			>
-				{user ? userInitials(user.first_name, user.last_name) : "…"}
+				<UserAvatar />
+				{variant === "sidebar" ? (
+					<span className="min-w-0 flex-1">
+						<span className="block truncate text-sm font-medium">
+							{name}
+						</span>
+						<span className="block truncate text-[11px] text-muted">
+							{user?.email}
+						</span>
+					</span>
+				) : null}
 			</button>
 
 			{open && user ? (
 				<div
-					id={`${menuId}-panel`}
 					role="menu"
-					aria-labelledby={`${menuId}-trigger`}
-					className="absolute right-0 top-full z-50 mt-2 w-[min(100vw-2rem,18rem)] rounded-xl border border-primary/10 bg-background-secondary py-1 shadow-lg"
+					className={cn(
+						popoverPanelClass,
+						"absolute z-50 w-64",
+						variant === "sidebar"
+							? "bottom-full left-0 mb-2"
+							: "top-full right-0 mt-2",
+					)}
 				>
-					<div className="flex gap-3 px-4 py-3">
-						<div
-							className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white"
-							aria-hidden
-						>
-							{userInitials(user.first_name, user.last_name)}
-						</div>
-						<div className="min-w-0 flex-1">
-							<p className="truncate font-semibold text-text-primary">
-								{displayName}
-							</p>
-							<p className="truncate text-sm text-text-secondary">
-								{user.email}
-							</p>
-						</div>
+					<div className="px-2.5 pt-2 pb-2.5">
+						<p className="truncate text-sm font-medium">{name}</p>
+						<p className="truncate text-xs text-muted">
+							{user.email}
+						</p>
 					</div>
-
-					<div className="border-t border-primary/10 px-4 py-3">
-						<div className="flex items-center justify-between gap-3">
-							<span className="text-sm text-text-secondary" id={themePickerId}>
-								Theme
-							</span>
-							<div
-								ref={themePickerRef}
-								className={cn(
-									"relative min-w-[8.5rem] max-w-[10rem] flex-1",
-								)}
-							>
+					<div className="border-t border-line px-2.5 py-2.5">
+						<p className="mb-1.5 text-[11px] font-medium text-muted">
+							Theme
+						</p>
+						<div className="flex rounded-lg bg-surface-2 p-0.5">
+							{THEMES.map(({ value, label, Icon }) => (
 								<button
+									key={value}
 									type="button"
-									aria-haspopup="listbox"
-									aria-expanded={themePickerOpen}
-									aria-controls={
-										themePickerOpen ? `${themePickerId}-list` : undefined
-									}
-									aria-labelledby={themePickerId}
-									onClick={() => setThemePickerOpen((v) => !v)}
+									onClick={() => setTheme(value)}
+									aria-pressed={theme === value}
 									className={cn(
-										"relative flex h-9 w-full cursor-pointer items-center rounded-lg border border-primary/15 bg-tint py-1.5 pl-9 pr-8 text-left text-sm text-text-primary",
-										"outline-none transition-[box-shadow,border-color]",
-										"hover:border-primary/20",
-										themePickerOpen &&
-											"border-primary/25 ring-2 ring-primary/20",
+										"flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-md py-1 text-[11px] font-medium transition",
+										theme === value
+											? "bg-surface text-fg shadow-sm"
+											: "text-muted hover:text-fg",
 									)}
 								>
-									<span
-										className="pointer-events-none absolute left-2.5 top-1/2 z-[1] -translate-y-1/2 text-text-secondary"
-										aria-hidden
-									>
-										{themeTriggerIcon}
-									</span>
-									<MdExpandMore
-										className={cn(
-											"pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary transition-transform",
-											themePickerOpen && "rotate-180",
-										)}
-										aria-hidden
-									/>
-									<span className="block truncate pl-0.5">
-										{themeLabel}
-									</span>
+									<Icon className="size-3.5" />
+									{label}
 								</button>
-								{themePickerOpen ? (
-									<ul
-										id={`${themePickerId}-list`}
-										role="listbox"
-										aria-label="Theme"
-										className={cn(
-											"absolute right-0 top-full z-[60] mt-1 w-full overflow-hidden rounded-lg border border-primary/15 py-1 shadow-lg",
-											"bg-background-secondary",
-										)}
-									>
-										{THEME_OPTIONS.map(({ value, label, Icon }) => {
-											const selected = theme === value;
-											return (
-												<li key={value} role="presentation">
-													<button
-														type="button"
-														role="option"
-														aria-selected={selected}
-														onClick={() => {
-															setTheme(value);
-															setThemePickerOpen(false);
-														}}
-														className={cn(
-															"flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors",
-															"text-text-primary hover:bg-primary/10",
-															selected && "bg-primary/15 font-medium",
-														)}
-													>
-														<Icon
-															className="h-5 w-5 shrink-0 text-text-secondary"
-															aria-hidden
-														/>
-														<span className="min-w-0 flex-1 truncate">
-															{label}
-														</span>
-														{selected ? (
-															<MdCheck
-																className="h-4 w-4 shrink-0 text-primary"
-																aria-hidden
-															/>
-														) : (
-															<span className="w-4 shrink-0" aria-hidden />
-														)}
-													</button>
-												</li>
-											);
-										})}
-									</ul>
-								) : null}
-							</div>
+							))}
 						</div>
 					</div>
-
-					<div className="border-t border-primary/10 px-2 py-2">
-						<NavLink
-							to="/profile"
+					<div className="border-t border-line pt-1">
+						<Link
+							to="/settings/profile"
 							role="menuitem"
-							onClick={() => setOpen(false)}
-							className={({ isActive }) =>
-								cn(menuLinkClass, isActive && "bg-primary/10")
-							}
+							onClick={close}
+							className={menuItemClass}
 						>
-							<FaUser className="h-4 w-4 shrink-0 text-text-secondary" />
-							Your profile
-						</NavLink>
-						<NavLink
-							to="/settings"
-							role="menuitem"
-							onClick={() => setOpen(false)}
-							className={({ isActive }) =>
-								cn(menuLinkClass, isActive && "bg-primary/10")
-							}
-						>
-							<FaGear className="h-4 w-4 shrink-0 text-text-secondary" />
+							<LuSettings className="size-4 text-muted" />
 							Settings
-						</NavLink>
-						<NavLink
+						</Link>
+						<Link
 							to="/contact"
 							role="menuitem"
-							onClick={() => setOpen(false)}
-							className={({ isActive }) =>
-								cn(menuLinkClass, isActive && "bg-primary/10")
-							}
+							onClick={close}
+							className={menuItemClass}
 						>
-							<FaPhone className="h-4 w-4 shrink-0 text-text-secondary" />
+							<LuMessageCircle className="size-4 text-muted" />
 							Contact us
-						</NavLink>
-						<NavLink
+						</Link>
+						<Link
 							to="/legal"
 							role="menuitem"
-							onClick={() => setOpen(false)}
-							className={({ isActive }) =>
-								cn(menuLinkClass, isActive && "bg-primary/10")
-							}
+							onClick={close}
+							className={menuItemClass}
 						>
-							<MdGavel className="h-5 w-5 shrink-0 text-text-secondary" />
-							Terms of use &amp; Privacy policy
-						</NavLink>
+							<LuScale className="size-4 text-muted" />
+							Terms &amp; Privacy
+						</Link>
 					</div>
-
-					<div className="border-t border-primary/10 px-2 py-2">
+					<div className="mt-1 border-t border-line pt-1">
 						<button
 							type="button"
 							role="menuitem"
 							onClick={() => void handleLogout()}
-							className={menuLinkClass}
+							className={menuItemClass}
 						>
-							<FaArrowRightFromBracket className="h-4 w-4 shrink-0 text-text-secondary" />
+							<LuLogOut className="size-4 text-muted" />
 							Log out
 						</button>
 					</div>

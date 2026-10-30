@@ -1,22 +1,19 @@
 import { useCallback, useEffect, useRef, type ReactNode } from "react";
 import {
-	MdChecklist,
-	MdCode,
-	MdEdit,
-	MdFormatBold,
-	MdFormatItalic,
-	MdFormatListBulleted,
-	MdFormatListNumbered,
-	MdFormatQuote,
-	MdHorizontalRule,
-	MdImage,
-	MdLink,
-	MdStrikethroughS,
-	MdTableChart,
-	MdTerminal,
-	MdVerticalSplit,
-	MdVisibility,
-} from "react-icons/md";
+	LuBold,
+	LuCode,
+	LuImage,
+	LuItalic,
+	LuLink,
+	LuList,
+	LuListChecks,
+	LuListOrdered,
+	LuMinus,
+	LuQuote,
+	LuSquareTerminal,
+	LuStrikethrough,
+	LuTable,
+} from "react-icons/lu";
 
 import { MarkdownContent } from "@/components/note/MarkdownContent";
 import { cn } from "@/lib/utils";
@@ -28,34 +25,13 @@ type MarkdownEditorPaneProps = {
 	value: string;
 	onChange: (value: string) => void;
 	view: MarkdownView;
-	onViewChange: (view: MarkdownView) => void;
 	placeholder?: string;
 	autoFocus?: boolean;
 	className?: string;
 };
 
-/** Desktop-only segmented control options (mobile uses a single toggle). */
-const VIEW_OPTIONS: { value: MarkdownView; label: string; icon: ReactNode }[] = [
-	{ value: "edit", label: "Edit", icon: <MdEdit className="h-4 w-4" aria-hidden /> },
-	{
-		value: "split",
-		label: "Split",
-		icon: <MdVerticalSplit className="h-4 w-4" aria-hidden />,
-	},
-	{
-		value: "preview",
-		label: "Preview",
-		icon: <MdVisibility className="h-4 w-4" aria-hidden />,
-	},
-];
-
-const textareaBaseClass = cn(
-	"w-full text-sm leading-relaxed text-text-primary outline-none",
-	"placeholder:text-text-secondary",
-	"[font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace]",
-);
-
 type Selection = { start: number; end: number };
+type CommandFn = (value: string, sel: Selection) => { value: string; selection: Selection };
 
 /** Computes the new text + selection after applying an inline wrap (e.g. **bold**). */
 function applyWrap(
@@ -121,7 +97,6 @@ export function MarkdownEditorPane({
 	value,
 	onChange,
 	view,
-	onViewChange,
 	placeholder = "Write your note in Markdown…",
 	autoFocus = false,
 	className,
@@ -165,83 +140,82 @@ export function MarkdownEditorPane({
 		key: string;
 		label: string;
 		icon: ReactNode;
-		run: () => void;
+		apply: CommandFn | null;
 	}[] = [
 		{
 			key: "bold",
 			label: "Bold",
-			icon: <MdFormatBold className="h-[18px] w-[18px]" aria-hidden />,
-			run: () => runCommand((v, s) => applyWrap(v, s, "**", "bold text")),
+			icon: <LuBold className="size-4" aria-hidden />,
+			apply: (v, s) => applyWrap(v, s, "**", "bold text"),
 		},
 		{
 			key: "italic",
 			label: "Italic",
-			icon: <MdFormatItalic className="h-[18px] w-[18px]" aria-hidden />,
-			run: () => runCommand((v, s) => applyWrap(v, s, "*", "italic text")),
+			icon: <LuItalic className="size-4" aria-hidden />,
+			apply: (v, s) => applyWrap(v, s, "*", "italic text"),
 		},
 		{
 			key: "strike",
 			label: "Strikethrough",
-			icon: <MdStrikethroughS className="h-[18px] w-[18px]" aria-hidden />,
-			run: () => runCommand((v, s) => applyWrap(v, s, "~~", "strikethrough")),
+			icon: <LuStrikethrough className="size-4" aria-hidden />,
+			apply: (v, s) => applyWrap(v, s, "~~", "strikethrough"),
 		},
 		{
 			key: "code",
 			label: "Inline code",
-			icon: <MdCode className="h-[18px] w-[18px]" aria-hidden />,
-			run: () => runCommand((v, s) => applyWrap(v, s, "`", "code")),
+			icon: <LuCode className="size-4" aria-hidden />,
+			apply: (v, s) => applyWrap(v, s, "`", "code"),
 		},
-		{ key: "div-1", label: "", icon: null, run: () => {} },
+		{ key: "div-1", label: "", icon: null, apply: null },
 		{
 			key: "h1",
 			label: "Heading 1",
 			icon: <span className="text-[13px] font-semibold">H1</span>,
-			run: () => runCommand((v, s) => applyLinePrefix(v, s, () => "# ")),
+			apply: (v, s) => applyLinePrefix(v, s, () => "# "),
 		},
 		{
 			key: "h2",
 			label: "Heading 2",
 			icon: <span className="text-[13px] font-semibold">H2</span>,
-			run: () => runCommand((v, s) => applyLinePrefix(v, s, () => "## ")),
+			apply: (v, s) => applyLinePrefix(v, s, () => "## "),
 		},
 		{
 			key: "h3",
 			label: "Heading 3",
 			icon: <span className="text-[13px] font-semibold">H3</span>,
-			run: () => runCommand((v, s) => applyLinePrefix(v, s, () => "### ")),
+			apply: (v, s) => applyLinePrefix(v, s, () => "### "),
 		},
-		{ key: "div-2", label: "", icon: null, run: () => {} },
+		{ key: "div-2", label: "", icon: null, apply: null },
 		{
 			key: "ul",
 			label: "Bulleted list",
-			icon: <MdFormatListBulleted className="h-[18px] w-[18px]" aria-hidden />,
-			run: () => runCommand((v, s) => applyLinePrefix(v, s, () => "- ")),
+			icon: <LuList className="size-4" aria-hidden />,
+			apply: (v, s) => applyLinePrefix(v, s, () => "- "),
 		},
 		{
 			key: "ol",
 			label: "Numbered list",
-			icon: <MdFormatListNumbered className="h-[18px] w-[18px]" aria-hidden />,
-			run: () => runCommand((v, s) => applyLinePrefix(v, s, (i) => `${i + 1}. `)),
+			icon: <LuListOrdered className="size-4" aria-hidden />,
+			apply: (v, s) => applyLinePrefix(v, s, (i) => `${i + 1}. `),
 		},
 		{
 			key: "task",
 			label: "Task list",
-			icon: <MdChecklist className="h-[18px] w-[18px]" aria-hidden />,
-			run: () => runCommand((v, s) => applyLinePrefix(v, s, () => "- [ ] ")),
+			icon: <LuListChecks className="size-4" aria-hidden />,
+			apply: (v, s) => applyLinePrefix(v, s, () => "- [ ] "),
 		},
 		{
 			key: "quote",
 			label: "Quote",
-			icon: <MdFormatQuote className="h-[18px] w-[18px]" aria-hidden />,
-			run: () => runCommand((v, s) => applyLinePrefix(v, s, () => "> ")),
+			icon: <LuQuote className="size-4" aria-hidden />,
+			apply: (v, s) => applyLinePrefix(v, s, () => "> "),
 		},
-		{ key: "div-3", label: "", icon: null, run: () => {} },
+		{ key: "div-3", label: "", icon: null, apply: null },
 		{
 			key: "link",
 			label: "Link",
-			icon: <MdLink className="h-[18px] w-[18px]" aria-hidden />,
-			run: () =>
-				runCommand((v, s) => {
+			icon: <LuLink className="size-4" aria-hidden />,
+			apply: (v, s) => {
 					const text = v.slice(s.start, s.end) || "link text";
 					const insertion = `[${text}](url)`;
 					const next = v.slice(0, s.start) + insertion + v.slice(s.end);
@@ -250,14 +224,13 @@ export function MarkdownEditorPane({
 						value: next,
 						selection: { start: urlStart, end: urlStart + 3 },
 					};
-				}),
+				},
 		},
 		{
 			key: "image",
 			label: "Image",
-			icon: <MdImage className="h-[18px] w-[18px]" aria-hidden />,
-			run: () =>
-				runCommand((v, s) => {
+			icon: <LuImage className="size-4" aria-hidden />,
+			apply: (v, s) => {
 					const alt = v.slice(s.start, s.end) || "alt text";
 					const insertion = `![${alt}](url)`;
 					const next = v.slice(0, s.start) + insertion + v.slice(s.end);
@@ -266,172 +239,93 @@ export function MarkdownEditorPane({
 						value: next,
 						selection: { start: urlStart, end: urlStart + 3 },
 					};
-				}),
+				},
 		},
 		{
 			key: "codeblock",
 			label: "Code block",
-			icon: <MdTerminal className="h-[18px] w-[18px]" aria-hidden />,
-			run: () =>
-				runCommand((v, s) => {
+			icon: <LuSquareTerminal className="size-4" aria-hidden />,
+			apply: (v, s) => {
 					const body = v.slice(s.start, s.end) || "code";
 					return insertBlock(v, s, "```\n" + body + "\n```");
-				}),
+				},
 		},
 		{
 			key: "table",
 			label: "Table",
-			icon: <MdTableChart className="h-[18px] w-[18px]" aria-hidden />,
-			run: () => runCommand((v, s) => insertBlock(v, s, TABLE_TEMPLATE)),
+			icon: <LuTable className="size-4" aria-hidden />,
+			apply: (v, s) => insertBlock(v, s, TABLE_TEMPLATE),
 		},
 		{
 			key: "hr",
 			label: "Divider",
-			icon: <MdHorizontalRule className="h-[18px] w-[18px]" aria-hidden />,
-			run: () => runCommand((v, s) => insertBlock(v, s, "---")),
+			icon: <LuMinus className="size-4" aria-hidden />,
+			apply: (v, s) => insertBlock(v, s, "---"),
 		},
 	];
 
 	const showEditor = view === "edit" || view === "split";
 	const showPreview = view === "preview" || view === "split";
 
-	// Mobile uses a single edit/preview toggle (split is desktop-only).
-	const isPreviewing = view === "preview";
-	const mobileToggleTo: MarkdownView = isPreviewing ? "edit" : "preview";
-	const mobileToggleLabel = isPreviewing ? "Edit" : "Preview";
-	const mobileToggleIcon = isPreviewing ? (
-		<MdEdit className="h-[18px] w-[18px]" aria-hidden />
-	) : (
-		<MdVisibility className="h-[18px] w-[18px]" aria-hidden />
-	);
-
-	const editor = (
-		<div
-			className={cn(
-				"flex min-h-0 min-w-0 flex-1 flex-col",
-				view === "split" && "border-primary/10 md:border-r",
-			)}
-		>
-			<div className="shrink-0 border-b border-primary/10 px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-text-secondary">
-				Write
-			</div>
-			<textarea
-				id={id}
-				ref={textareaRef}
-				value={value}
-				onChange={(e) => onChange(e.target.value)}
-				placeholder={placeholder}
-				autoFocus={autoFocus}
-				className={cn(
-					textareaBaseClass,
-					"custom-scrollbar min-h-0 flex-1 resize-none bg-background-secondary px-4 py-3",
-				)}
-			/>
-		</div>
-	);
-
-	const preview = (
-		<div
-			className={cn(
-				"min-h-0 min-w-0 flex-1 flex-col",
-				// In split mode the preview is hidden on small screens (editor only).
-				view === "split" ? "hidden md:flex" : "flex",
-			)}
-		>
-			<div className="shrink-0 border-b border-primary/10 px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-text-secondary">
-				Preview
-			</div>
-			<div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-3">
-				{value.trim() ? (
-					<MarkdownContent content={value} />
-				) : (
-					<p className="text-sm text-text-secondary">Nothing to preview yet.</p>
-				)}
-			</div>
-		</div>
-	);
-
 	return (
-		<div
-			className={cn(
-				"flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-primary/10 bg-background-secondary",
-				className,
-			)}
-		>
-			<div className="flex shrink-0 items-center gap-2 border-b border-primary/10 bg-tint/60 px-2 py-1.5">
-				<div className="flex min-w-0 flex-1 flex-wrap items-center gap-0.5">
-					{showEditor
-						? commands.map((cmd) =>
-								cmd.icon === null ? (
-									<span
-										key={cmd.key}
-										className="mx-1 h-5 w-px shrink-0 bg-primary/10"
-										aria-hidden
-									/>
-								) : (
-									<button
-										key={cmd.key}
-										type="button"
-										onClick={cmd.run}
-										title={cmd.label}
-										aria-label={cmd.label}
-										className={cn(
-											"flex h-7 min-w-7 shrink-0 items-center justify-center rounded-md px-1 text-text-secondary transition-colors",
-											"hover:bg-background-secondary hover:text-text-primary",
-										)}
-									>
-										{cmd.icon}
-									</button>
-								),
-							)
-						: null}
-				</div>
-
-				{/* Mobile: single edit/preview toggle. */}
-				<button
-					type="button"
-					onClick={() => onViewChange(mobileToggleTo)}
-					title={mobileToggleLabel}
-					aria-label={mobileToggleLabel}
+		<div className={cn("flex min-h-0 flex-1", className)}>
+			{showEditor ? (
+				<div
 					className={cn(
-						"flex h-7 min-w-7 shrink-0 items-center justify-center rounded-md px-1 text-text-secondary transition-colors md:hidden",
-						"hover:bg-background-secondary hover:text-text-primary",
+						"flex min-h-0 min-w-0 flex-1 flex-col",
+						view === "split" && "border-line md:border-r",
 					)}
 				>
-					{mobileToggleIcon}
-				</button>
-
-				{/* Desktop: full edit / split / preview control. */}
-				<div
-					className="hidden shrink-0 rounded-lg border border-primary/15 bg-background-secondary p-0.5 md:flex"
-					role="group"
-					aria-label="Editor view"
-				>
-					{VIEW_OPTIONS.map((option) => (
-						<button
-							key={option.value}
-							type="button"
-							onClick={() => onViewChange(option.value)}
-							className={cn(
-								"inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors",
-								view === option.value
-									? "bg-tint text-text-primary shadow-sm"
-									: "text-text-secondary hover:text-text-primary",
-							)}
-							aria-pressed={view === option.value}
-							title={option.label}
-						>
-							{option.icon}
-							<span>{option.label}</span>
-						</button>
-					))}
+					<div
+						className="custom-scrollbar flex shrink-0 items-center gap-0.5 overflow-x-auto border-b border-line px-3 py-1 md:px-6"
+						role="toolbar"
+						aria-label="Formatting"
+					>
+						{commands.map((cmd) =>
+							cmd.icon === null ? (
+								<span key={cmd.key} className="mx-1 h-5 w-px shrink-0 bg-line" aria-hidden />
+							) : (
+								<button
+									key={cmd.key}
+									type="button"
+									onClick={() => cmd.apply && runCommand(cmd.apply)}
+									title={cmd.label}
+									aria-label={cmd.label}
+									className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+								>
+									{cmd.icon}
+								</button>
+							),
+						)}
+					</div>
+					<textarea
+						id={id}
+						ref={textareaRef}
+						value={value}
+						onChange={(e) => onChange(e.target.value)}
+						placeholder={placeholder}
+						autoFocus={autoFocus}
+						spellCheck
+						className="custom-scrollbar min-h-0 w-full flex-1 resize-none bg-transparent px-4 py-5 font-mono text-[13px] leading-7 text-fg outline-none placeholder:font-sans placeholder:text-muted/70 md:px-8"
+					/>
 				</div>
-			</div>
-
-			<div className="flex min-h-0 flex-1 flex-col md:flex-row">
-				{showEditor ? editor : null}
-				{showPreview ? preview : null}
-			</div>
+			) : null}
+			{showPreview ? (
+				<div
+					className={cn(
+						"custom-scrollbar min-w-0 flex-1 overflow-y-auto bg-surface/50",
+						view === "split" && "max-md:hidden",
+					)}
+				>
+					<div className="mx-auto max-w-3xl px-5 py-6 md:px-8">
+						{value.trim() ? (
+							<MarkdownContent content={value} className="text-[15px]" />
+						) : (
+							<p className="text-sm text-muted">Nothing to preview yet.</p>
+						)}
+					</div>
+				</div>
+			) : null}
 		</div>
 	);
 }

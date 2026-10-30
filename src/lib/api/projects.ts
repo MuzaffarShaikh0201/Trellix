@@ -6,6 +6,7 @@ import type {
 	GetProjectsResponse,
 	GetRecentProjectsResponse,
 	Project,
+	ProjectCountsResponse,
 	UpdateProjectParams,
 } from "@/types/project";
 import type { MessageResponse } from "@/types/auth";
@@ -14,6 +15,10 @@ export function fetchProjects(params: GetProjectsParams = {}) {
 	return apiRequest<GetProjectsResponse>("/project", {
 		searchParams: params,
 	});
+}
+
+export function fetchProjectCounts(params: { is_archived?: boolean; is_favorite?: boolean } = {}) {
+	return apiRequest<ProjectCountsResponse>("/project/counts", { searchParams: params });
 }
 
 export function fetchRecentProjects() {

@@ -1,3 +1,4 @@
+import { parseRetryAfter } from "@/lib/api/retryAfter";
 import { postSessionRefresh } from "@/lib/api/session-refresh";
 import { notifySessionExpired } from "@/lib/auth/session-expired";
 import {
@@ -9,37 +10,66 @@ import {
 import { getApiBaseUrl } from "@/lib/config";
 import { ApiError } from "@/types/api";
 
-/** Coalesces concurrent 401 recoveries into a single refresh. */
-let refreshInFlight: Promise<boolean> | null = null;
+/**
+ * - renewed: a newer access token is stored (by this call or by another tab).
+ * - rejected: the server refused the refresh token; the session is over.
+ * - unavailable: rate-limited, offline or a server error; try again later, stay signed in.
+ */
+type RefreshOutcome = "renewed" | "rejected" | "unavailable";
 
-async function refreshStoredSession(signal?: AbortSignal): Promise<boolean> {
-	const stored = readAuthSession();
-	if (!stored?.refresh_token) {
-		clearAuthSession();
-		return false;
+/** Coalesces concurrent refreshes in this tab into one request. */
+let refreshInFlight: Promise<RefreshOutcome> | null = null;
+
+/**
+ * Refresh tokens rotate: each one works once. Tabs share localStorage, so a lock stops two
+ * tabs from spending the same refresh token. Falls back to no lock where unsupported.
+ */
+function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
+	if (typeof navigator !== "undefined" && "locks" in navigator) {
+		return navigator.locks.request("trellix-session-refresh", fn);
 	}
-	try {
-		const previousAccessToken = getStoredAccessToken();
-		const session = await postSessionRefresh(
-			stored.refresh_token,
-			signal,
-			previousAccessToken ?? undefined,
-		);
-		setAuthSession(session);
-		return true;
-	} catch {
-		clearAuthSession();
-		return false;
-	}
+	return fn();
 }
 
-function refreshSessionOnce(signal?: AbortSignal): Promise<boolean> {
+/** @param staleAccessToken The token the caller found wanting; if storage holds a different one, it was already renewed. */
+function refreshStoredSession(staleAccessToken: string | null, signal?: AbortSignal): Promise<RefreshOutcome> {
+	return withRefreshLock(async () => {
+		const stored = readAuthSession();
+		if (!stored) return "rejected";
+		if (stored.access_token !== staleAccessToken) return "renewed";
+		try {
+			setAuthSession(await postSessionRefresh(stored.refresh_token, signal, stored.access_token));
+			return "renewed";
+		} catch (err) {
+			// Another tab without lock support may have rotated the token meanwhile.
+			if (getStoredAccessToken() !== stored.access_token) return "renewed";
+			return err instanceof ApiError && err.status === 401 ? "rejected" : "unavailable";
+		}
+	});
+}
+
+function refreshSessionOnce(staleAccessToken: string | null, signal?: AbortSignal): Promise<RefreshOutcome> {
 	if (!refreshInFlight) {
-		refreshInFlight = refreshStoredSession(signal).finally(() => {
+		refreshInFlight = refreshStoredSession(staleAccessToken, signal).finally(() => {
 			refreshInFlight = null;
 		});
 	}
 	return refreshInFlight;
+}
+
+/**
+ * Renews the session while the access token is still valid. Only signs out if the server
+ * rejects the refresh token; other failures are retried by the caller.
+ */
+export async function renewSessionEarly(): Promise<boolean> {
+	const outcome = await refreshSessionOnce(getStoredAccessToken());
+	if (outcome === "rejected") endSession();
+	return outcome === "renewed";
+}
+
+function endSession() {
+	clearAuthSession();
+	notifySessionExpired();
 }
 
 type SearchParamsInput = Record<
@@ -110,10 +140,8 @@ export async function apiRequest<T>(
 
 	const headers = new Headers(requestHeaders);
 	headers.set("Accept", "application/json");
-	if (auth) {
-		const token = getStoredAccessToken();
-		if (token) headers.set("Authorization", `Bearer ${token}`);
-	}
+	const sentToken = auth ? getStoredAccessToken() : null;
+	if (sentToken) headers.set("Authorization", `Bearer ${sentToken}`);
 
 	let requestBody: BodyInit | null | undefined = rawBody;
 	if (json !== undefined) {
@@ -133,29 +161,22 @@ export async function apiRequest<T>(
 	let res = await fetch(url, { method, headers, body: requestBody, signal });
 
 	if (res.status === 401 && auth) {
-		const recovered = await refreshSessionOnce(signal);
-		if (recovered) {
-			const token = getStoredAccessToken();
-			if (token) {
-				headers.set("Authorization", `Bearer ${token}`);
-				res = await fetch(url, {
-					method,
-					headers,
-					body: requestBody,
-					signal,
-				});
-			}
+		const outcome = await refreshSessionOnce(sentToken, signal);
+		const token = getStoredAccessToken();
+		if (outcome === "renewed" && token) {
+			headers.set("Authorization", `Bearer ${token}`);
+			res = await fetch(url, { method, headers, body: requestBody, signal });
+			if (res.status === 401) endSession();
+		} else if (outcome === "rejected") {
+			endSession();
 		}
-	}
-
-	if (res.status === 401 && auth) {
-		clearAuthSession();
-		notifySessionExpired();
+		// "unavailable": keep the session and let this request fail; the next one retries.
 	}
 
 	if (!res.ok) {
 		const errorBody = await parseJsonSafe(res);
-		throw new ApiError(res.status, errorBody);
+		const retryAfter = res.status === 429 ? parseRetryAfter(res.headers.get("Retry-After"), errorBody) : null;
+		throw new ApiError(res.status, errorBody, undefined, retryAfter);
 	}
 
 	if (res.status === 204) return undefined as T;

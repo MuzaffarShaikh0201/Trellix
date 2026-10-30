@@ -1,631 +1,531 @@
-import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearchParams } from "react-router";
 import {
-	useMutation,
-	useQuery,
-	useQueryClient,
-	type QueryKey,
-} from "@tanstack/react-query";
-import { FaFilter, FaSort } from "react-icons/fa6";
-import { MdAdd } from "react-icons/md";
+	LuArchive,
+	LuArrowUpDown,
+	LuFolderSearch,
+	LuLayoutGrid,
+	LuList,
+	LuPlus,
+	LuSearch,
+	LuSquareKanban,
+	LuStar,
+} from "react-icons/lu";
 
-import { CreateProjectCard } from "@/components/project/CreateProjectCard";
-import { CreateProjectModal } from "@/components/project/CreateProjectModal";
-import { ProjectCard } from "@/components/project/ProjectCard";
-import { ProjectCardGridCell } from "@/components/project/ProjectCardGridCell";
-import { ProjectCardSkeleton } from "@/components/project/ProjectCardSkeleton";
+import { Page, PageHeader } from "@/components/layout/AppShell";
+import { useShell } from "@/components/layout/shell-context";
+import { FavoriteStar, ProjectBoardCard, ProjectCard, TaskProgressChip } from "@/components/project/ProjectCard";
+import { ProjectRepoBadge } from "@/components/project/ProjectRepoBadge";
+import { ProjectStatusChip } from "@/components/project/ProjectStatusChip";
+import { DueLabel, TimelineBar } from "@/components/project/ProjectTimeline";
+import { ProjectTile } from "@/components/project/ProjectTile";
 import Button from "@/components/ui/Button";
-import {
-	buttonPrimaryClass,
-	buttonSecondaryClass,
-} from "@/components/ui/buttonStyles";
+import { buttonSecondaryClass } from "@/components/ui/buttonStyles";
+import { EmptyState, ErrorState, Skeleton, cardClass } from "@/components/ui/Card";
 import { Pagination } from "@/components/ui/Pagination";
-import { createProject, fetchProjects, toggleProjectFavorite } from "@/lib/api/projects";
+import { pageInfo } from "@/lib/pagination";
+import { Segmented } from "@/components/ui/Segmented";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { inputClass } from "@/components/ui/fieldStyles";
+import { fetchProjects } from "@/lib/api/projects";
 import { getRequestErrorMessage } from "@/lib/getRequestErrorMessage";
+import { formatDay, timeAgo } from "@/lib/project/projectDisplay";
+import { PROJECT_STATUSES, PROJECT_STATUS_META } from "@/lib/project/projectStatusStyles";
+import {
+	MAX_PAGE_LIMIT,
+	MAX_PAGES,
+	fetchAllPages,
+	projectKeys,
+	useProjectStatusCounts,
+	useSetProjectStatus,
+	useToggleFavorite,
+} from "@/lib/queries";
 import { cn } from "@/lib/utils";
-import { showAlert } from "@/services/alertService";
-import type { ProjectSortBy, ProjectSortOrder, ProjectStatus } from "@/types/project";
+import type { GetProjectsParams, GetProjectsResponse, Project, ProjectSortBy, ProjectSortOrder, ProjectStatus } from "@/types/project";
 
-const STATUS_FILTER_OPTIONS: { value: ProjectStatus | "ALL"; label: string }[] = [
-	{ value: "ALL", label: "All statuses" },
-	{ value: "PLANNING", label: "Planning" },
-	{ value: "IN_PROGRESS", label: "In progress" },
-	{ value: "ON_HOLD", label: "On hold" },
-	{ value: "COMPLETED", label: "Completed" },
-	{ value: "ABANDONED", label: "Abandoned" },
+type View = "grid" | "list" | "board";
+
+const SORTS: { value: string; label: string; by: ProjectSortBy; order: ProjectSortOrder }[] = [
+	{ value: "updated_at:desc", label: "Last updated", by: "updated_at", order: "desc" },
+	{ value: "created_at:desc", label: "Newest first", by: "created_at", order: "desc" },
+	{ value: "title:asc", label: "Title A–Z", by: "title", order: "asc" },
+	{ value: "end_date:asc", label: "Due date", by: "end_date", order: "asc" },
+	{ value: "start_date:asc", label: "Start date", by: "start_date", order: "asc" },
 ];
 
-const SORT_BY_OPTIONS: { value: ProjectSortBy; label: string }[] = [
-	{ value: "updated_at", label: "Recently updated" },
-	{ value: "created_at", label: "Recently created" },
-	{ value: "title", label: "Title" },
-	{ value: "start_date", label: "Start date" },
-	{ value: "end_date", label: "End date" },
-];
+const PAGE_SIZES = [12, 24, 48];
 
-const SORT_ORDER_OPTIONS: { value: ProjectSortOrder; label: string }[] = [
-	{ value: "asc", label: "Ascending" },
-	{ value: "desc", label: "Descending" },
-];
-
-type ProjectTab = "ALL" | "FAVORITES" | "ARCHIVED";
-
-const PROJECT_TABS: { value: ProjectTab; label: string }[] = [
-	{ value: "ALL", label: "All" },
-	{ value: "FAVORITES", label: "Favorites" },
-	{ value: "ARCHIVED", label: "Archived" },
-];
-
-const DEFAULT_PAGE_LIMIT = 10;
-
-const PAGE_LIMIT_OPTIONS = [6, 8, 10, 12, 16, 20] as const;
+function readParams(sp: URLSearchParams) {
+	const status = sp.get("status");
+	const view = sp.get("view");
+	const sort = SORTS.find((s) => s.value === sp.get("sort")) ?? SORTS[0];
+	const limit = Number(sp.get("limit"));
+	return {
+		status: (PROJECT_STATUSES as string[]).includes(status ?? "") ? (status as ProjectStatus) : undefined,
+		view: (["grid", "list", "board"].includes(view ?? "") ? view : "grid") as View,
+		q: (sp.get("q") ?? "").trim(),
+		favorites: sp.get("fav") === "1",
+		archived: sp.get("archived") === "1",
+		sort,
+		page: Math.max(1, Number(sp.get("page")) || 1),
+		limit: PAGE_SIZES.includes(limit) ? limit : PAGE_SIZES[0],
+	};
+}
 
 export function ProjectsPage() {
-	const queryClient = useQueryClient();
-	const [activeTab, setActiveTab] = useState<ProjectTab>("ALL");
-	const [statusFilter, setStatusFilter] = useState<ProjectStatus | "ALL">("ALL");
-	const [sortBy, setSortBy] = useState<ProjectSortBy>("updated_at");
-	const [sortOrder, setSortOrder] = useState<ProjectSortOrder>("desc");
-	const [page, setPage] = useState(1);
-	const [pageLimit, setPageLimit] = useState<number>(DEFAULT_PAGE_LIMIT);
-	const [filterModalOpen, setFilterModalOpen] = useState(false);
-	const [sortModalOpen, setSortModalOpen] = useState(false);
-	const filterRootRef = useRef<HTMLDivElement>(null);
-	const sortRootRef = useRef<HTMLDivElement>(null);
-	const controlsId = useId();
+	const [sp, setSp] = useSearchParams();
+	const state = readParams(sp);
+	const { openCreateProject } = useShell();
+	const favorite = useToggleFavorite();
+	const canDrag = useMediaQuery("(pointer: fine)");
 
-	const [createModalOpen, setCreateModalOpen] = useState(false);
-	const [createTitle, setCreateTitle] = useState("");
-	const [createDescription, setCreateDescription] = useState("");
-	const [createRepoUrl, setCreateRepoUrl] = useState("");
-	const [createStartDate, setCreateStartDate] = useState("");
-	const [createEndDate, setCreateEndDate] = useState("");
-	const [createSubmitting, setCreateSubmitting] = useState(false);
+	/** Updates URL params; anything other than `page` resets to page 1. */
+	function update(patch: Record<string, string | null>) {
+		setSp(
+			(prev) => {
+				const next = new URLSearchParams(prev);
+				for (const [k, v] of Object.entries(patch)) {
+					if (v === null || v === "") next.delete(k);
+					else next.set(k, v);
+				}
+				if (!("page" in patch)) next.delete("page");
+				return next;
+			},
+			{ replace: true },
+		);
+	}
 
-	const archivedOnly = activeTab === "ARCHIVED" ? true : undefined;
-	const effectiveStatusFilter: ProjectStatus | undefined =
-		activeTab === "ARCHIVED" || statusFilter === "ALL"
-			? undefined
-			: statusFilter;
-	const favoriteOnly = activeTab === "FAVORITES" ? true : undefined;
+	const filters = {
+		is_archived: state.archived ? true : undefined,
+		is_favorite: state.favorites ? true : undefined,
+	};
+	const { counts } = useProjectStatusCounts(filters);
+	const isBoard = state.view === "board";
 
-	const queryKey = useMemo(
-		() =>
-			[
-				"projects",
-				{
-					tab: activeTab,
-					page,
-					limit: pageLimit,
-					status: effectiveStatusFilter,
-					is_archived: archivedOnly,
-					is_favorite: favoriteOnly,
-					sort_by: sortBy,
-					sort_order: sortOrder,
-				},
-			] satisfies QueryKey,
-		[
-			activeTab,
-			page,
-			pageLimit,
-			effectiveStatusFilter,
-			archivedOnly,
-			favoriteOnly,
-			sortBy,
-			sortOrder,
-		],
-	);
+	const params: GetProjectsParams = isBoard
+		? { ...filters, q: state.q || undefined, limit: MAX_PAGE_LIMIT, sort_by: state.sort.by, sort_order: state.sort.order }
+		: {
+				...filters,
+				q: state.q || undefined,
+				status: state.status,
+				page: state.page,
+				limit: state.limit,
+				sort_by: state.sort.by,
+				sort_order: state.sort.order,
+			};
 
-	useEffect(() => {
-		function onPointerDown(event: PointerEvent) {
-			const target = event.target as Node;
-			if (
-				filterModalOpen &&
-				filterRootRef.current &&
-				!filterRootRef.current.contains(target)
-			) {
-				setFilterModalOpen(false);
-			}
-			if (
-				sortModalOpen &&
-				sortRootRef.current &&
-				!sortRootRef.current.contains(target)
-			) {
-				setSortModalOpen(false);
-			}
-		}
-
-		function onKeyDown(event: KeyboardEvent) {
-			if (event.key === "Escape") {
-				setFilterModalOpen(false);
-				setSortModalOpen(false);
-				setCreateModalOpen(false);
-			}
-		}
-
-		document.addEventListener("pointerdown", onPointerDown);
-		document.addEventListener("keydown", onKeyDown);
-		return () => {
-			document.removeEventListener("pointerdown", onPointerDown);
-			document.removeEventListener("keydown", onKeyDown);
-		};
-	}, [filterModalOpen, sortModalOpen, createModalOpen]);
-
-	useEffect(() => {
-		if (!createModalOpen) return;
-		const prev = document.body.style.overflow;
-		document.body.style.overflow = "hidden";
-		return () => {
-			document.body.style.overflow = prev;
-		};
-	}, [createModalOpen]);
-
-	const {
-		data,
-		isPending,
-		isError,
-		error,
-		refetch,
-		isRefetching,
-	} = useQuery({
-		queryKey,
+	const query = useQuery({
+		queryKey: [...projectKeys.list(params), isBoard ? "all-pages" : "page"],
+		// The board needs every project, so it loads all pages; grid/list load one page.
 		queryFn: () =>
-			fetchProjects({
-				page,
-				limit: pageLimit,
-				status: effectiveStatusFilter,
-				is_archived: archivedOnly,
-				is_favorite: favoriteOnly,
-				sort_by: sortBy,
-				sort_order: sortOrder,
-			}),
+			isBoard
+				? fetchAllPages<GetProjectsResponse>((page) => fetchProjects({ ...params, page }), "projects")
+				: fetchProjects(params).then((r) => ({ ...r, truncated: false })),
+		placeholderData: keepPreviousData,
 	});
 
-	const favoriteMutation = useMutation({
-		mutationFn: toggleProjectFavorite,
-		onMutate: async (projectId: string) => {
-			await queryClient.cancelQueries({ queryKey });
-			const previous = queryClient.getQueryData<typeof data>(queryKey);
-			queryClient.setQueryData<typeof data>(queryKey, (current) => {
-				if (!current) return current;
-				return {
-					...current,
-					projects: current.projects.map((project) =>
-						project.id === projectId
-							? { ...project, is_favorite: !project.is_favorite }
-							: project,
-					),
-				};
-			});
-			return { previous };
-		},
-		onError: (err, _projectId, context) => {
-			if (context?.previous) {
-				queryClient.setQueryData(queryKey, context.previous);
-			}
-			showAlert(
-				"Could not update favorite",
-				"error",
-				getRequestErrorMessage(
-					err,
-					"Something went wrong while updating favorite status.",
-				),
-			);
-		},
-		onSettled: async () => {
-			await queryClient.invalidateQueries({ queryKey });
-		},
-	});
+	const projects = query.data?.projects ?? [];
+	const info = pageInfo(state.page, state.limit, query.data?.total_items ?? 0, query.data?.total_pages ?? 1);
+	const favProps = {
+		onToggleFavorite: (id: string) => favorite.mutate(id),
+		favoritePending: favorite.isPending,
+	};
+	const filtersActive = Boolean(state.status || state.favorites || state.q);
 
-	const projects = data?.projects ?? [];
-	const totalItems = data?.total_items ?? 0;
-	const totalPages = Math.max(1, data?.total_pages ?? 1);
-	const currentPage = Math.min(page, totalPages);
-	const startItem =
-		totalItems === 0 ? 0 : (currentPage - 1) * pageLimit + 1;
-	const endItem = Math.min(currentPage * pageLimit, totalItems);
-
-	const canGoPrev = currentPage > 1;
-	const canGoNext = currentPage < totalPages;
-
-	function resetCreateForm() {
-		setCreateTitle("");
-		setCreateDescription("");
-		setCreateRepoUrl("");
-		setCreateStartDate("");
-		setCreateEndDate("");
-	}
-
-	function openCreateModal() {
-		setFilterModalOpen(false);
-		setSortModalOpen(false);
-		setCreateModalOpen(true);
-	}
-
-	function closeCreateModal() {
-		setCreateModalOpen(false);
-		setCreateSubmitting(false);
-		resetCreateForm();
-	}
-
-	function handleCreateSubmit(e: FormEvent<HTMLFormElement>) {
-		e.preventDefault();
-
-		const title = createTitle.trim();
-		if (!title) {
-			showAlert("Validation Error", "warning", "Project title is required.");
-			return;
-		}
-
-		setCreateSubmitting(true);
-		void (async () => {
-			try {
-				await createProject({
-					title,
-					description: createDescription.trim() || null,
-					repo_url: createRepoUrl.trim() || null,
-					start_date: createStartDate || null,
-					end_date: createEndDate || null,
-				});
-				showAlert(
-					"Project created",
-					"success",
-					"Your project has been created.",
-				);
-
-				await queryClient.invalidateQueries({ queryKey: ["projects"] });
-				closeCreateModal();
-			} catch (err) {
-				showAlert(
-					"Create failed",
-					"error",
-					getRequestErrorMessage(
-						err,
-						"Something went wrong while creating your project.",
-					),
-				);
-			} finally {
-				setCreateSubmitting(false);
-			}
-		})();
-	}
-
-	const handleCreateProjectClick = openCreateModal;
-	const emptyStateMessage =
-		activeTab === "FAVORITES"
-			? "No favorite projects found yet."
-			: activeTab === "ARCHIVED"
-				? "No archived projects found yet."
-				: "No projects found yet. Use the card above to create your first one.";
-
-	const showCreateCard = activeTab === "ALL";
-
-	const panelBarClass =
-		"shrink-0 border-primary/10 bg-tint px-4 py-1 text-[10px] leading-tight text-text-secondary md:px-6 sm:text-xs";
+	const subtitle = state.q
+		? `${query.data?.total_items ?? "…"} results for “${state.q}”`
+		: state.archived
+		? `${counts.ALL ?? "…"} archived projects`
+		: state.favorites
+			? `${counts.ALL ?? "…"} favorite projects`
+			: `${counts.ALL ?? "…"} active projects`;
 
 	return (
-		<section className="flex min-h-0 flex-1 flex-col gap-4">
-			<header>
-				<h1 className="text-2xl font-bold text-text-primary">Projects</h1>
-				<p className="mt-1 text-sm text-text-secondary">
-					Track software projects, repos, and delivery in one place.
-				</p>
-				<div className="mt-3 flex items-center justify-between gap-3">
-					<div className="flex items-center gap-1">
-						{PROJECT_TABS.map((tab) => {
-							const isActive = activeTab === tab.value;
-							return (
-								<button
-									key={tab.value}
-									type="button"
-									onClick={() => {
-										setActiveTab(tab.value);
-										setPage(1);
-									}}
-									className={cn(
-										"border-b-2 px-3 py-2 text-sm font-medium transition-colors",
-										isActive
-											? "border-primary text-primary"
-											: "border-transparent text-text-secondary hover:text-text-primary",
-									)}
-									aria-pressed={isActive}
-								>
-									{tab.label}
-								</button>
-							);
-						})}
-					</div>
-					<div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-						<button
-							type="button"
-							aria-label="Create Project"
-							title="Create Project"
-							onClick={handleCreateProjectClick}
-							className={cn(
-								buttonPrimaryClass("h-8 w-8 shrink-0 p-0 sm:hidden"),
-							)}
-						>
-							<MdAdd className="h-4 w-4" aria-hidden />
-						</button>
-						<Button
-							title="Create Project"
-							variant="primary"
-							imgSrc={<MdAdd className="h-4 w-4" aria-hidden />}
-							className="hidden w-auto sm:inline-flex"
-							onClick={handleCreateProjectClick}
-						/>
-					</div>
-				</div>
-			</header>
+		<Page>
+			<PageHeader
+				title={state.archived ? "Archived projects" : "Projects"}
+				subtitle={subtitle}
+				actions={
+					<Button icon={<LuPlus className="size-4" />} onClick={openCreateProject}>
+						New project
+					</Button>
+				}
+			/>
 
-			<div
-				className={cn(
-					"flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-primary/10",
-					"bg-background-secondary",
-				)}
-			>
-				<div
-					className={cn(
-						panelBarClass,
-						"relative z-10 flex flex-wrap items-center justify-between gap-3 border-b shadow-panel-below",
+			<div className="mt-5 flex flex-wrap items-center gap-1.5">
+				<SearchBox
+					key={state.q}
+					initial={state.q}
+					onSearch={(q) => update({ q: q || null })}
+				/>
+				<button
+					type="button"
+					onClick={() => update({ fav: state.favorites ? null : "1" })}
+					title="Favorites"
+					aria-pressed={state.favorites}
+					className={buttonSecondaryClass(
+						cn("py-1.5", state.favorites && "border-amber-400/60 text-amber-600 dark:text-amber-400"),
 					)}
 				>
-					<div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-						<span className="whitespace-nowrap tabular-nums">
-							{isPending
-								? "Loading projects..."
-								: `${totalItems} total`}
-						</span>
-						{isRefetching && !isPending ? (
-							<span>Refreshing…</span>
-						) : null}
-					</div>
-					<div className="ml-auto flex shrink-0 items-center justify-end gap-1">
-					<div ref={filterRootRef} className="relative">
-						<button
-							type="button"
-							onClick={() => {
-								setFilterModalOpen((v) => !v);
-								setSortModalOpen(false);
-							}}
-							className="flex h-6 w-6 cursor-pointer items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
-							title="Open filters"
-							aria-label="Open filters"
-							aria-haspopup="dialog"
-							aria-expanded={filterModalOpen}
-							aria-controls={filterModalOpen ? `${controlsId}-filter-modal` : undefined}
-						>
-							<FaFilter className="h-4 w-4" aria-hidden />
-						</button>
-						{filterModalOpen ? (
-							<div
-								id={`${controlsId}-filter-modal`}
-								role="dialog"
-								aria-label="Filter projects"
-								className="absolute right-0 top-full z-50 mt-2 w-[min(100vw-2rem,19rem)] rounded-xl border border-primary/10 bg-background-secondary p-4 shadow-lg"
-							>
-								<p className="text-sm font-semibold text-text-primary">Filters</p>
-								<div className="mt-3 space-y-3">
-									{activeTab !== "ARCHIVED" ? (
-										<div>
-											<label className="text-xs font-medium uppercase tracking-wide text-text-secondary">
-												Status
-											</label>
-											<select
-												value={statusFilter}
-												onChange={(e) => {
-													setStatusFilter(
-														e.target.value as ProjectStatus | "ALL",
-													);
-													setPage(1);
-												}}
-												className={cn(
-													"mt-1.5 h-9 w-full cursor-pointer rounded-lg border border-primary/15 bg-tint px-3 text-sm text-text-primary",
-													"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
-												)}
-												aria-label="Filter projects by status"
-											>
-												{STATUS_FILTER_OPTIONS.map((option) => (
-													<option key={option.value} value={option.value}>
-														{option.label}
-													</option>
-												))}
-											</select>
-										</div>
-									) : null}
-								</div>
-							</div>
-						) : null}
-					</div>
-					<div ref={sortRootRef} className="relative">
-						<button
-							type="button"
-							onClick={() => {
-								setSortModalOpen((v) => !v);
-								setFilterModalOpen(false);
-							}}
-							className="flex h-6 w-6 cursor-pointer items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
-							title="Open sorting options"
-							aria-label="Open sorting options"
-							aria-haspopup="dialog"
-							aria-expanded={sortModalOpen}
-							aria-controls={sortModalOpen ? `${controlsId}-sort-modal` : undefined}
-						>
-							<FaSort className="h-4 w-4" aria-hidden />
-						</button>
-						{sortModalOpen ? (
-							<div
-								id={`${controlsId}-sort-modal`}
-								role="dialog"
-								aria-label="Sort projects"
-								className="absolute right-0 top-full z-50 mt-2 w-[min(100vw-2rem,19rem)] rounded-xl border border-primary/10 bg-background-secondary p-4 shadow-lg"
-							>
-								<p className="text-sm font-semibold text-text-primary">Sorting</p>
-								<div className="mt-3 space-y-3">
-									<div>
-										<label className="text-xs font-medium uppercase tracking-wide text-text-secondary">
-											Sort by
-										</label>
-										<select
-											value={sortBy}
-											onChange={(e) => {
-												setSortBy(e.target.value as ProjectSortBy);
-												setPage(1);
-											}}
-											className={cn(
-												"mt-1.5 h-9 w-full cursor-pointer rounded-lg border border-primary/15 bg-tint px-3 text-sm text-text-primary",
-												"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
-											)}
-											aria-label="Sort projects by field"
-										>
-											{SORT_BY_OPTIONS.map((option) => (
-												<option key={option.value} value={option.value}>
-													{option.label}
-												</option>
-											))}
-										</select>
-									</div>
-									<div>
-										<label className="text-xs font-medium uppercase tracking-wide text-text-secondary">
-											Order
-										</label>
-										<select
-											value={sortOrder}
-											onChange={(e) => {
-												setSortOrder(e.target.value as ProjectSortOrder);
-												setPage(1);
-											}}
-											className={cn(
-												"mt-1.5 h-9 w-full cursor-pointer rounded-lg border border-primary/15 bg-tint px-3 text-sm text-text-primary",
-												"outline-none transition-[box-shadow,border-color] focus:border-primary/25 focus:ring-2 focus:ring-primary/20",
-											)}
-											aria-label="Sort order"
-										>
-											{SORT_ORDER_OPTIONS.map((option) => (
-												<option key={option.value} value={option.value}>
-													{option.label}
-												</option>
-											))}
-										</select>
-									</div>
-								</div>
-							</div>
-						) : null}
-					</div>
-					</div>
-				</div>
-
-				<div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-					{isError ? (
-						<div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
-							<p className="text-sm font-medium text-red-600 dark:text-red-400">
-								Could not load projects
-							</p>
-							<p className="mt-1 text-sm text-text-secondary">
-								{getRequestErrorMessage(
-									error,
-									"Something went wrong while loading projects.",
-								)}
-							</p>
-							<button
-								type="button"
-								onClick={() => void refetch()}
-								className={cn("mt-3", buttonSecondaryClass())}
-							>
-								Try again
-							</button>
-						</div>
-					) : (
-						<>
-							<div className="grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-0 lg:grid-cols-4 xl:grid-cols-5">
-				{isPending
-					? Array.from({ length: pageLimit }, (_, idx) => (
-							<ProjectCardGridCell
-								key={`project-skeleton-${idx}`}
-								index={idx}
-							>
-								<ProjectCardSkeleton />
-							</ProjectCardGridCell>
-						))
-					: (
-							<>
-								{projects.map((project, idx) => (
-									<ProjectCardGridCell
-										key={project.id}
-										index={idx}
-									>
-										<ProjectCard
-											project={project}
-											onToggleFavorite={(projectId) =>
-												favoriteMutation.mutate(projectId)
-											}
-											favoritePending={
-												favoriteMutation.isPending &&
-												favoriteMutation.variables === project.id
-											}
-										/>
-									</ProjectCardGridCell>
-								))}
-								{showCreateCard ? (
-									<ProjectCardGridCell index={projects.length}>
-										<CreateProjectCard
-											onCreate={handleCreateProjectClick}
-										/>
-									</ProjectCardGridCell>
-								) : null}
-							</>
-						)}
-							</div>
-
-							{!isPending && projects.length === 0 ? (
-								<p className="mt-4 text-sm text-text-secondary">
-									{emptyStateMessage}
-								</p>
-							) : null}
-						</>
-					)}
-				</div>
-
-				{!isError && !isPending ? (
-					<Pagination
-						className={cn(
-							panelBarClass,
-							"relative z-10 border-t shadow-panel-above",
-						)}
-						startItem={startItem}
-						endItem={endItem}
-						totalItems={totalItems}
-						canGoPrev={canGoPrev}
-						canGoNext={canGoNext}
-						pageLimit={pageLimit}
-						pageLimitOptions={[...PAGE_LIMIT_OPTIONS]}
-						onPageLimitChange={(limit) => {
-							setPageLimit(limit);
-							setPage(1);
-						}}
-						onFirstPage={() => setPage(1)}
-						onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
-						onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
-						onLastPage={() => setPage(totalPages)}
-					/>
-				) : null}
+					<LuStar className={cn("size-4", state.favorites && "fill-amber-400 text-amber-400")} />
+					<span className="max-sm:hidden">Favorites</span>
+				</button>
+				<button
+					type="button"
+					onClick={() => update({ archived: state.archived ? null : "1", status: null })}
+					title="Archived"
+					aria-pressed={state.archived}
+					className={buttonSecondaryClass(cn("py-1.5", state.archived && "border-primary/60 text-primary"))}
+				>
+					<LuArchive className="size-4" />
+					<span className="max-sm:hidden">Archived</span>
+				</button>
+				<label className={buttonSecondaryClass("relative py-1.5")}>
+					<LuArrowUpDown className="size-4" />
+					<span className="max-sm:hidden">{state.sort.label}</span>
+					<select
+						value={state.sort.value}
+						onChange={(e) => update({ sort: e.target.value === SORTS[0].value ? null : e.target.value })}
+						className="absolute inset-0 cursor-pointer opacity-0"
+						aria-label="Sort projects"
+					>
+						{SORTS.map((s) => (
+							<option key={s.value} value={s.value}>
+								{s.label}
+							</option>
+						))}
+					</select>
+				</label>
+				<Segmented
+					className="ml-auto"
+					iconOnly
+					ariaLabel="View"
+					value={state.view}
+					onChange={(v) => update({ view: v === "grid" ? null : v })}
+					options={[
+						{ value: "grid", title: "Grid", icon: <LuLayoutGrid className="size-4" /> },
+						{ value: "list", title: "List", icon: <LuList className="size-4" /> },
+						{ value: "board", title: "Board", icon: <LuSquareKanban className="size-4" /> },
+					]}
+				/>
 			</div>
 
-			<CreateProjectModal
-				open={createModalOpen}
-				onClose={closeCreateModal}
-				onSubmit={handleCreateSubmit}
-				title={createTitle}
-				description={createDescription}
-				repoUrl={createRepoUrl}
-				startDate={createStartDate}
-				endDate={createEndDate}
-				onTitleChange={(e) => setCreateTitle(e.target.value)}
-				onDescriptionChange={(e) => setCreateDescription(e.target.value)}
-				onRepoUrlChange={(e) => setCreateRepoUrl(e.target.value)}
-				onStartDateChange={(e) => setCreateStartDate(e.target.value)}
-				onEndDateChange={(e) => setCreateEndDate(e.target.value)}
-				submitting={createSubmitting}
+			{isBoard ? null : (
+				<div className="custom-scrollbar -mx-4 mt-3 flex gap-1.5 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0">
+					<StatusChip active={!state.status} label="All" count={counts.ALL} onClick={() => update({ status: null })} />
+					{PROJECT_STATUSES.map((s) => (
+						<StatusChip
+							key={s}
+							status={s}
+							active={state.status === s}
+							label={PROJECT_STATUS_META[s].label}
+							count={counts[s]}
+							onClick={() => update({ status: s })}
+						/>
+					))}
+				</div>
+			)}
+
+			<div className="mt-4">
+				{query.isError ? (
+					<ErrorState
+						title="Could not load projects"
+						message={getRequestErrorMessage(query.error, "Something went wrong while loading projects.")}
+						onRetry={() => void query.refetch()}
+						retrying={query.isRefetching}
+					/>
+				) : query.isPending ? (
+					<GridSkeleton />
+				) : projects.length === 0 && !isBoard ? (
+					<div className={cardClass}>
+						<EmptyState
+							icon={<LuFolderSearch />}
+							title={filtersActive || state.archived ? "No projects match" : "No projects yet"}
+							description={
+								state.archived
+									? "Archived projects will show up here."
+									: filtersActive
+										? "Try a different search or status, or turn off Favorites."
+										: "Create a project to start tracking its timeline and notes."
+							}
+							action={
+								filtersActive ? (
+									<Button variant="secondary" onClick={() => update({ status: null, fav: null, q: null })}>
+										Clear filters
+									</Button>
+								) : state.archived ? null : (
+									<Button icon={<LuPlus className="size-4" />} onClick={openCreateProject}>
+										New project
+									</Button>
+								)
+							}
+						/>
+					</div>
+				) : isBoard ? (
+					<Board projects={projects} canDrag={canDrag} truncated={(query.data?.total_items ?? 0) > projects.length} />
+				) : (
+					<div className={cn("transition-opacity", query.isPlaceholderData && "opacity-60")}>
+						{state.view === "list" ? (
+							<ProjectTable projects={projects} {...favProps} />
+						) : (
+							<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+								{projects.map((p) => (
+									<ProjectCard key={p.id} project={p} {...favProps} />
+								))}
+								{!state.archived && !filtersActive && !info.canGoNext ? (
+									<button
+										type="button"
+										onClick={openCreateProject}
+										className="grid min-h-48 cursor-pointer place-items-center rounded-xl border-2 border-dashed border-line text-sm font-medium text-muted transition hover:border-primary/50 hover:text-primary"
+									>
+										<span className="flex flex-col items-center gap-2">
+											<LuPlus className="size-5" />
+											New project
+										</span>
+									</button>
+								) : null}
+							</div>
+						)}
+						<Pagination
+							className="mt-5"
+							{...info}
+							totalItems={query.data?.total_items ?? 0}
+							pageLimit={state.limit}
+							pageLimitOptions={PAGE_SIZES}
+							onPageLimitChange={(n) => update({ limit: n === PAGE_SIZES[0] ? null : String(n) })}
+							onFirstPage={() => update({ page: null })}
+							onPrevPage={() => update({ page: String(info.current - 1) })}
+							onNextPage={() => update({ page: String(info.current + 1) })}
+							onLastPage={() => update({ page: String(info.pages) })}
+						/>
+					</div>
+				)}
+			</div>
+		</Page>
+	);
+}
+
+/** Search input that updates the URL once typing pauses. */
+function SearchBox({ initial, onSearch }: { initial: string; onSearch: (q: string) => void }) {
+	const [value, setValue] = useState(initial);
+	const debounced = useDebouncedValue(value.trim(), 300);
+	const onSearchRef = useRef(onSearch);
+	useLayoutEffect(() => {
+		onSearchRef.current = onSearch;
+	});
+	useEffect(() => {
+		if (debounced !== initial) onSearchRef.current(debounced);
+	}, [debounced, initial]);
+	return (
+		<div className="relative w-full sm:w-64">
+			<LuSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
+			<input
+				type="search"
+				value={value}
+				onChange={(e) => setValue(e.target.value)}
+				placeholder="Search projects"
+				aria-label="Search projects"
+				className={cn(inputClass, "py-1.5 pl-9")}
 			/>
-		</section>
+		</div>
+	);
+}
+
+function StatusChip({
+	status,
+	active,
+	label,
+	count,
+	onClick,
+}: {
+	status?: ProjectStatus;
+	active: boolean;
+	label: string;
+	count: number | undefined;
+	onClick: () => void;
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			aria-pressed={active}
+			className={cn(
+				"inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition",
+				active ? "border-primary bg-primary text-white" : "border-line bg-surface text-muted hover:text-fg",
+			)}
+		>
+			{status ? (
+				<span className={cn("size-1.5 rounded-full", active ? "bg-white" : PROJECT_STATUS_META[status].dot)} />
+			) : null}
+			{label}
+			<span className="tabular-nums opacity-70">{count ?? "·"}</span>
+		</button>
+	);
+}
+
+function ProjectTable({
+	projects,
+	...fav
+}: {
+	projects: Project[];
+	onToggleFavorite: (id: string) => void;
+	favoritePending: boolean;
+}) {
+	const navigate = useNavigate();
+	return (
+		<div className={cn(cardClass, "overflow-hidden")}>
+			<table className="w-full text-sm">
+				<thead className="border-b border-line bg-surface-2/50 text-left text-[11px] tracking-wider text-muted uppercase">
+					<tr>
+						<th className="px-4 py-2.5 font-medium">Project</th>
+						<th className="px-3 py-2.5 font-medium">Status</th>
+						<th className="px-3 py-2.5 font-medium max-lg:hidden">Timeline</th>
+						<th className="px-3 py-2.5 font-medium max-sm:hidden">Due</th>
+						<th className="px-3 py-2.5 font-medium max-md:hidden">Tasks</th>
+						<th className="px-3 py-2.5 font-medium max-xl:hidden">Repository</th>
+						<th className="w-10">
+							<span className="sr-only">Favorite</span>
+						</th>
+					</tr>
+				</thead>
+				<tbody className="divide-y divide-line">
+					{projects.map((p) => (
+						<tr
+							key={p.id}
+							onClick={() => navigate(`/projects/${p.id}`)}
+							className="cursor-pointer transition-colors hover:bg-surface-2/50"
+						>
+							<td className="px-4 py-3">
+								<div className="flex items-center gap-3">
+									<ProjectTile project={p} className="size-7 text-[10px]" />
+									<div className="min-w-0">
+										<a
+											href={`/projects/${p.id}`}
+											onClick={(e) => e.preventDefault()}
+											className="block truncate font-medium outline-none focus-visible:underline"
+										>
+											{p.title}
+										</a>
+										<p className="text-[11px] text-muted">Updated {timeAgo(p.updated_at)}</p>
+									</div>
+								</div>
+							</td>
+							<td className="px-3 py-3">
+								<ProjectStatusChip status={p.status} />
+							</td>
+							<td className="w-48 px-3 py-3 max-lg:hidden">
+								<TimelineBar project={p} />
+								<p className="mt-1 text-[11px] text-muted">
+									{formatDay(p.start_date)} → {formatDay(p.end_date)}
+								</p>
+							</td>
+							<td className="px-3 py-3 text-xs max-sm:hidden">
+								<DueLabel project={p} />
+							</td>
+							<td className="px-3 py-3 max-md:hidden">
+								{p.task_counts?.total ? <TaskProgressChip project={p} /> : <span className="text-xs text-muted">—</span>}
+							</td>
+							<td className="px-3 py-3 max-xl:hidden">
+								<ProjectRepoBadge repoUrl={p.repo_url} />
+							</td>
+							<td className="pr-3">
+								<FavoriteStar project={p} {...fav} />
+							</td>
+						</tr>
+					))}
+				</tbody>
+			</table>
+		</div>
+	);
+}
+
+function Board({ projects, canDrag, truncated }: { projects: Project[]; canDrag: boolean; truncated: boolean }) {
+	const setStatus = useSetProjectStatus();
+	const [over, setOver] = useState<ProjectStatus | null>(null);
+	const columns = useMemo(
+		() => PROJECT_STATUSES.map((s) => ({ status: s, items: projects.filter((p) => p.status === s) })),
+		[projects],
+	);
+
+	return (
+		<>
+			{canDrag ? (
+				<p className="mb-3 text-xs text-muted">Drag a card to another column to change its status.</p>
+			) : (
+				<p className="mb-3 text-xs text-muted">Tap ⇄ on a card to move it to another status.</p>
+			)}
+			<div className="custom-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
+				{columns.map(({ status, items }) => (
+					<div
+						key={status}
+						onDragOver={(e) => {
+							if (!canDrag) return;
+							e.preventDefault();
+							setOver(status);
+						}}
+						onDragLeave={() => setOver((s) => (s === status ? null : s))}
+						onDrop={(e) => {
+							e.preventDefault();
+							setOver(null);
+							const id = e.dataTransfer.getData("text/project-id");
+							const project = projects.find((p) => p.id === id);
+							if (project && project.status !== status) setStatus.mutate({ id, status });
+						}}
+						className={cn(
+							"w-72 shrink-0 snap-start rounded-xl bg-surface-2/60 p-2 transition",
+							over === status && "ring-2 ring-primary/40",
+						)}
+					>
+						<div className="flex items-center gap-2 px-2 py-1.5">
+							<span className={cn("size-2 rounded-full", PROJECT_STATUS_META[status].dot)} />
+							<span className="text-xs font-semibold">{PROJECT_STATUS_META[status].label}</span>
+							<span className="text-xs text-muted">{items.length}</span>
+						</div>
+						<div className="mt-1 space-y-2">
+							{items.length ? (
+								items.map((p) => (
+									<ProjectBoardCard
+										key={p.id}
+										project={p}
+										draggable={canDrag}
+										onMove={(next) => next !== p.status && setStatus.mutate({ id: p.id, status: next })}
+									/>
+								))
+							) : (
+								<p className="rounded-lg border border-dashed border-line px-3 py-6 text-center text-xs text-muted">
+									{canDrag ? "Drop a project here" : "Nothing here"}
+								</p>
+							)}
+						</div>
+					</div>
+				))}
+			</div>
+			{truncated ? (
+				<p className="mt-3 text-xs text-muted">The board shows your first {MAX_PAGE_LIMIT * MAX_PAGES} projects.</p>
+			) : null}
+		</>
+	);
+}
+
+function GridSkeleton() {
+	return (
+		<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+			{Array.from({ length: 6 }, (_, i) => (
+				<div key={i} className={cn(cardClass, "space-y-3 p-4")}>
+					<div className="flex items-center gap-3">
+						<Skeleton className="size-9 rounded-lg" />
+						<div className="flex-1 space-y-1.5">
+							<Skeleton className="h-4 w-2/3" />
+							<Skeleton className="h-2.5 w-1/3" />
+						</div>
+					</div>
+					<Skeleton className="h-10 w-full" />
+					<Skeleton className="h-5 w-24 rounded-full" />
+					<Skeleton className="h-1.5 w-full rounded-full" />
+				</div>
+			))}
+		</div>
 	);
 }
